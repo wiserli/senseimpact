@@ -1,0 +1,2 @@
+String supabase_url = "https://fwzmkideoodgzxviyaur.supabase.co";
+String supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3em1raWRlb29kZ3p4dml5YXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk5NzU1NzcsImV4cCI6MjAyNTU1MTU3N30.pMMrdqAXaNljw7hfwzTPkvuF15d7KQ7tGX94OA9PS4Y";
