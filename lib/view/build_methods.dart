@@ -9,6 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pothole_detection_app/configs/model_configs.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_controller.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_preview.dart';
 import 'package:visionx/visionx.dart';
@@ -67,8 +68,6 @@ class BuildMethods {
       ),
     );
   }
-
-
 
   Widget buildLogo({
     required String orientation,
@@ -515,7 +514,7 @@ class BuildMethods {
               SizedBox(width: 4.w),
               Flexible(
                 child: Text(
-                  modelName ??
+                  ModelConfigs.modelName ??
                       (prefs.chosenModelName.isNotEmpty
                           ? prefs.chosenModelName
                           : initialModelName),
@@ -809,8 +808,6 @@ class BuildMethods {
               : const SizedBox.shrink(),
     );
   }
-
-
 
   void showScreenshotPreview({required bool showPreview}) {
     // setState(() {

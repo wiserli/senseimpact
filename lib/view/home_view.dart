@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pothole_detection_app/configs/model_configs.dart';
 import 'package:pothole_detection_app/utils/indicators.dart';
 import 'package:pothole_detection_app/utils/permission_controller.dart';
 import 'package:pothole_detection_app/view/build_methods.dart';
@@ -302,16 +303,10 @@ class HomeViewState extends State<HomeView>
     print("orientation from loadModel: $orientation");
     try {
       if (Platform.isAndroid) {
-        modelPath = await copy(assetPath: "assets/model/yolov9t_int8.tflite");
-        metadataPath = await copy(assetPath: "assets/model/metadata.yaml");
+        modelPath = await copy(assetPath: ModelConfigs.tfliteModelPath);
+        metadataPath = await copy(assetPath: ModelConfigs.metadataPath);
       } else if (Platform.isIOS) {
-        mlModelPath = await copy(assetPath: "assets/yolov9t.mlmodel");
-        // ScaffoldMessenger.of(context).showSnackBar(CustomSnackBar()
-        //     .snackBarUsing(
-        //         context,
-        //         prefs.chosenModelName != ""
-        //             ? prefs.chosenModelName
-        //             : initialModelName));
+        mlModelPath = await copy(assetPath: ModelConfigs.mlModelPath);
       }
 
       if (Platform.isAndroid) {
@@ -562,15 +557,6 @@ class HomeViewState extends State<HomeView>
                 if (isCountingOn)
                   LineDrawerScreen(_controller, orientation: orientation),
                 homeBuildMethods.buildLogo(orientation: orientation),
-                // homeBuildMethods.buildServer(
-                //   orientation: orientation,
-                //   onServerButtonPressed: () {
-                //     prefs.appEventsList = [UserEvents.dashboardClick];
-                //     FirebaseAnalytics.instance.logEvent(
-                //       name: UserEvents.dashboardClick,
-                //     );
-                //   },
-                // ),
                 homeBuildMethods.buildTimeAndFps(
                   orientation: orientation,
                   objectDetector: objectDetector,
@@ -584,7 +570,7 @@ class HomeViewState extends State<HomeView>
                 ),
                 homeBuildMethods.buildModelNameRow(orientation: orientation),
                 homeBuildMethods.buildDetectionRow(
-                  task: prefs.chosenModelMode,
+                  task: ModelConfigs.defaultMode,
                   orientation: orientation,
                   showrtspindicator: false,
                   isRtspPlaying: false,
@@ -606,17 +592,10 @@ class HomeViewState extends State<HomeView>
                     );
                   },
                 ),
-                // homeBuildMethods.buildIPCameraToggleButton(
-                //   orientation: orientation,
-                //   onIPCameraToggleButtonPressed:
-                //       () => showLensOptions(
-                //         context: context,
-                //         isIpCamView: _isIPCameraActive,
-                //       ),
-                // ),
                 homeBuildMethods.buildTrackAndCountButton(
                   orientation: orientation,
                   onTrackAndCountButtonPressed: () {
+                    debugPrint("Track and Count Button Pressed");
                     showTrackAndCountSettings(
                       context: context,
                       objectDetector: objectDetector,
@@ -631,38 +610,6 @@ class HomeViewState extends State<HomeView>
                     );
                   },
                 ),
-                homeBuildMethods.buildLensToggleButton(
-                  orientation: orientation,
-                  icon: 'camera_flip.png',
-                  onLensToggleButtonPressed: () {
-                    // handleToggleLensDirection(context, _controller);
-                    prefs.appEventsList = [
-                      _controller.value.lensDirection == 0
-                          ? UserEvents.cameraSwitchFront
-                          : UserEvents.cameraSwitchRear,
-                    ];
-                    // _controller.value.lensDirection == 0
-                    //     ? FirebaseAnalytics.instance.logEvent(
-                    //       name: UserEvents.cameraSwitchFront,
-                    //     )
-                    //     : FirebaseAnalytics.instance.logEvent(
-                    //       name: UserEvents.cameraSwitchRear,
-                    //     );
-                    // showLensOptions(
-                    //     context: context, isIpCamView: _isIPCameraActive);
-                  },
-                ),
-                // if (Platform.isAndroid)
-                //   homeBuildMethods.buildScreenshotComponent(
-                //       orientation: orientation,
-                //       ctx: context,
-                //       onScreenshotButtonClicked: captureAndSaveScreenshot),
-                // if (Platform.isAndroid)
-                //   homeBuildMethods.buildScreenshotPreview(
-                //       orientation: orientation,
-                //       ctx: context,
-                //       showPreview: showPreview,
-                //       screenshotBytes: screenshotBytes),
                 if (_showUpdateDialog && _pendingUpdateInfo != null)
                   _buildUpdateDialog(),
               ],
@@ -1390,6 +1337,8 @@ class HomeViewState extends State<HomeView>
     );
   }
 
+  // Dart
+  // Replace the existing showTrackAndCountSettings bottom-sheet logic with this.
   void showTrackAndCountSettings({
     required BuildContext context,
     required ObjectDetector objectDetector,
@@ -1408,81 +1357,81 @@ class HomeViewState extends State<HomeView>
     // ✅ Pause when opening
     CustomSnackBar().SnackBarMessage("Live Preview Paused");
     _controller.pauseLivePrediction();
-
-    final bottomSheetController = Scaffold.of(context).showBottomSheet((
-      BuildContext context,
-    ) {
-      bool isTrackerExpanded = false;
-      bool isCounterExpanded = false;
-
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setModalState) {
-          return Container(
-            // height: 600.h,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(18.r),
-                topRight: Radius.circular(18.r),
+    // final bottomSheetController = Scaffold.of(context).showBottomSheet((
+    //   BuildContext context,
+    // ) {
+    //   bool isTrackerExpanded = false;
+    //   bool isCounterExpanded = false;
+    //
+    //   return
+    // });
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        bool isTrackerExpanded = false;
+        bool isCounterExpanded = false;
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              // height: 600.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(18.r),
+                  topRight: Radius.circular(18.r),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 18.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header
-                  Padding(
-                    padding: EdgeInsets.all(12.w),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Track & Count",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close, size: 26),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Switch + Reset in one row
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: SwitchListTile(
-                            contentPadding: EdgeInsets.zero, // reduces space
-                            title: const Text(
-                              'Object Tracking',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w400,
-                                fontSize: 12,
-                              ),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 18.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Padding(
+                      padding: EdgeInsets.all(12.w),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Track & Count",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w400,
                             ),
-                            value: trackingEnabled,
-                            onChanged: (bool value) {
-                              if (prefs.authFlag == true) {
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, size: 26),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Switch + Reset in one row
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: SwitchListTile(
+                              contentPadding: EdgeInsets.zero, // reduces space
+                              title: const Text(
+                                'Object Tracking',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              value: trackingEnabled,
+                              onChanged: (bool value) {
                                 prefs.appEventsList = [
                                   value
                                       ? UserEvents.objectTrackingTurnOn
                                       : UserEvents.objectTrackingTurnOff,
                                 ];
-                                // FirebaseAnalytics.instance.logEvent(
-                                //   name:
-                                //       value
-                                //           ? UserEvents.objectTrackingTurnOn
-                                //           : UserEvents.objectTrackingTurnOff,
-                                // );
                                 setModalState(() {
                                   trackingEnabled = value;
                                 });
@@ -1505,222 +1454,210 @@ class HomeViewState extends State<HomeView>
                                     lineCounterStatsLabel: prefs.counterLabel,
                                   );
                                 }
-                              } else {
-                                CustomSnackBar().snackBarLoginReqFeature(
-                                  context,
-                                );
-                              }
-                            },
+                              },
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
-                  if (trackingEnabled)
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header row with toggle button
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Tracking Settings',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
+                    if (trackingEnabled)
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header row with toggle button
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Tracking Settings',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(
+                                IconButton(
+                                  icon: Icon(
+                                    isTrackerExpanded
+                                        ? Icons.keyboard_arrow_up
+                                        : Icons.keyboard_arrow_down,
+                                  ),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      isTrackerExpanded = !isTrackerExpanded;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+
+                            // Expandable content
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              child:
                                   isTrackerExpanded
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                ),
-                                onPressed: () {
-                                  setModalState(() {
-                                    isTrackerExpanded = !isTrackerExpanded;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-
-                          // Expandable content
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                            child:
-                                isTrackerExpanded
-                                    ? Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Text(
-                                              'Reset Tracker',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w400,
-                                                fontSize: 12,
+                                      ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Reset Tracker',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 12,
+                                                ),
                                               ),
-                                            ),
-                                            IconButton(
-                                              tooltip: "Reset Tracker",
-                                              onPressed: () {
-                                                prefs.appEventsList = [
-                                                  UserEvents
-                                                      .resetTrackerClicked,
-                                                ];
-                                                // FirebaseAnalytics.instance
-                                                //     .logEvent(
-                                                //       name:
-                                                //           UserEvents
-                                                //               .resetTrackerClicked,
-                                                //     );
-                                                cameraController
-                                                    .resetTrackingId();
-                                                CustomSnackBar()
-                                                    .snackBarTrackerReset();
-                                              },
-                                              icon: const Icon(
-                                                Icons.refresh_rounded,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        // Tracking Algorithm
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Text(
-                                              'Tracking Algorithm',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w400,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            DropdownButton<String>(
-                                              value:
-                                                  trackingAlgorithmDropdownValue,
-                                              icon: const Icon(
-                                                Icons.arrow_downward,
-                                              ),
-                                              elevation: 16,
-                                              style: const TextStyle(
-                                                color: Colors.deepPurple,
-                                              ),
-                                              underline: Container(
-                                                height: 2,
-                                                color: Colors.deepPurpleAccent,
-                                              ),
-                                              onChanged: (String? value) {
-                                                if (value != null) {
+                                              IconButton(
+                                                tooltip: "Reset Tracker",
+                                                onPressed: () {
                                                   prefs.appEventsList = [
                                                     UserEvents
-                                                        .trackingAlgorithmChanged,
+                                                        .resetTrackerClicked,
                                                   ];
                                                   // FirebaseAnalytics.instance
                                                   //     .logEvent(
                                                   //       name:
                                                   //           UserEvents
-                                                  //               .trackingAlgorithmChanged,
+                                                  //               .resetTrackerClicked,
                                                   //     );
                                                   cameraController
-                                                      .setTrackingSettings(
-                                                        trackingEnabled:
-                                                            cameraController
-                                                                .value
-                                                                .trackingEnabled,
-                                                        trackingAlgorithm:
-                                                            value,
-                                                      );
-                                                  setModalState(() {
-                                                    trackingAlgorithmDropdownValue =
+                                                      .resetTrackingId();
+                                                  CustomSnackBar()
+                                                      .snackBarTrackerReset();
+                                                },
+                                                icon: const Icon(
+                                                  Icons.refresh_rounded,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          // Tracking Algorithm
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Tracking Algorithm',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              DropdownButton<String>(
+                                                value:
+                                                    trackingAlgorithmDropdownValue,
+                                                icon: const Icon(
+                                                  Icons.arrow_downward,
+                                                ),
+                                                elevation: 16,
+                                                style: const TextStyle(
+                                                  color: Colors.deepPurple,
+                                                ),
+                                                underline: Container(
+                                                  height: 2,
+                                                  color:
+                                                      Colors.deepPurpleAccent,
+                                                ),
+                                                onChanged: (String? value) {
+                                                  if (value != null) {
+                                                    prefs.appEventsList = [
+                                                      UserEvents
+                                                          .trackingAlgorithmChanged,
+                                                    ];
+                                                    // FirebaseAnalytics.instance
+                                                    //     .logEvent(
+                                                    //       name:
+                                                    //           UserEvents
+                                                    //               .trackingAlgorithmChanged,
+                                                    //     );
+                                                    cameraController
+                                                        .setTrackingSettings(
+                                                          trackingEnabled:
+                                                              cameraController
+                                                                  .value
+                                                                  .trackingEnabled,
+                                                          trackingAlgorithm:
+                                                              value,
+                                                        );
+                                                    setModalState(() {
+                                                      trackingAlgorithmDropdownValue =
+                                                          value;
+                                                    });
+                                                    prefs.trackingAlgorithm =
                                                         value;
-                                                  });
-                                                  prefs.trackingAlgorithm =
-                                                      value;
-                                                }
-                                              },
-                                              items:
-                                                  algorithmsList
-                                                      .map<
-                                                        DropdownMenuItem<String>
-                                                      >(
-                                                        (String value) =>
-                                                            DropdownMenuItem<
-                                                              String
-                                                            >(
-                                                              value: value,
-                                                              child: Text(
-                                                                value,
+                                                  }
+                                                },
+                                                items:
+                                                    algorithmsList
+                                                        .map<
+                                                          DropdownMenuItem<
+                                                            String
+                                                          >
+                                                        >(
+                                                          (String value) =>
+                                                              DropdownMenuItem<
+                                                                String
+                                                              >(
+                                                                value: value,
+                                                                child: Text(
+                                                                  value,
+                                                                ),
                                                               ),
-                                                            ),
-                                                      )
-                                                      .toList(),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 12.h),
-                                      ],
-                                    )
-                                    : const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  // Max Missed Frames Slider
-                  isTrackerExpanded
-                      ? CustomSlider(
-                        title: 'Maximum missed frames',
-                        currentSliderValue: double.parse(prefs.maxMissedFrames),
-                        sliderValueType: SliderValueType.Integer,
-                        maxSliderValue: 100,
-                        numOfDivision: 100,
-                        onSliderChanged: (double value) {
-                          maxMissedFrames = value.toInt();
-                          prefs.maxMissedFrames = value.toStringAsFixed(0);
-                          objectDetector.setMaxMissedFrames(value.toInt());
-                        },
-                      )
-                      : const SizedBox.shrink(),
-
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: SwitchListTile(
-                            contentPadding: EdgeInsets.zero, // reduces space
-                            title: const Text(
-                              'Object Counter',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w400,
-                                fontSize: 12,
-                              ),
+                                                        )
+                                                        .toList(),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 12.h),
+                                        ],
+                                      )
+                                      : const SizedBox.shrink(),
                             ),
-                            value: counterEnabled,
-                            onChanged: (bool value) {
-                              if (prefs.authFlag == true) {
-                                prefs.appEventsList = [
-                                  value
-                                      ? UserEvents.objectCountingTurnOn
-                                      : UserEvents.objectCountingTurnOff,
-                                ];
-                                // FirebaseAnalytics.instance.logEvent(
-                                //   name:
-                                //       value
-                                //           ? UserEvents.objectCountingTurnOn
-                                //           : UserEvents.objectCountingTurnOff,
-                                // );
+                          ],
+                        ),
+                      ),
+                    // Max Missed Frames Slider
+                    isTrackerExpanded
+                        ? CustomSlider(
+                          title: 'Maximum missed frames',
+                          currentSliderValue: double.parse(
+                            prefs.maxMissedFrames,
+                          ),
+                          sliderValueType: SliderValueType.Integer,
+                          maxSliderValue: 100,
+                          numOfDivision: 100,
+                          onSliderChanged: (double value) {
+                            maxMissedFrames = value.toInt();
+                            prefs.maxMissedFrames = value.toStringAsFixed(0);
+                            objectDetector.setMaxMissedFrames(value.toInt());
+                          },
+                        )
+                        : const SizedBox.shrink(),
+
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: SwitchListTile(
+                              contentPadding: EdgeInsets.zero, // reduces space
+                              title: const Text(
+                                'Object Counter',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              value: counterEnabled,
+                              onChanged: (bool value) {
                                 if (trackingEnabled) {
                                   setModalState(() {
                                     counterEnabled = value;
@@ -1736,188 +1673,183 @@ class HomeViewState extends State<HomeView>
                                   CustomSnackBar()
                                       .snackBarEnableTrackingFirst();
                                 }
-                              } else {
-                                CustomSnackBar().snackBarLoginReqFeature(
-                                  context,
-                                );
-                              }
-                            },
+                              },
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
-                  if (counterEnabled) ...[
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header row with toggle button
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Counting Settings',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
+                    if (counterEnabled) ...[
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header row with toggle button
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Counting Settings',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(
+                                IconButton(
+                                  icon: Icon(
+                                    isCounterExpanded
+                                        ? Icons.keyboard_arrow_up
+                                        : Icons.keyboard_arrow_down,
+                                  ),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      isCounterExpanded = !isCounterExpanded;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+
+                            // Expandable content
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              child:
                                   isCounterExpanded
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                ),
-                                onPressed: () {
-                                  setModalState(() {
-                                    isCounterExpanded = !isCounterExpanded;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-
-                          // Expandable content
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                            child:
-                                isCounterExpanded
-                                    ? Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Text(
-                                              'Reset Counter',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w400,
-                                                fontSize: 12,
+                                      ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Text(
+                                                'Reset Counter',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 12,
+                                                ),
                                               ),
-                                            ),
-                                            IconButton(
-                                              tooltip: "Reset Counter",
-                                              onPressed: () {
-                                                prefs.appEventsList = [
-                                                  UserEvents
-                                                      .resetCounterClicked,
-                                                ];
-                                                // FirebaseAnalytics.instance
-                                                //     .logEvent(
-                                                //       name:
-                                                //           UserEvents
-                                                //               .resetCounterClicked,
-                                                //     );
-                                                cameraController
-                                                    .resetLineCounter();
-                                                CustomSnackBar()
-                                                    .snackBarCounterReset();
-                                              },
-                                              icon: const Icon(
-                                                Icons.refresh_rounded,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        // Stats Label
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Text(
-                                              'Stats Label',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w400,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            DropdownButton<String>(
-                                              value: counterLabelDropdownValue,
-                                              icon: const Icon(
-                                                Icons.arrow_downward,
-                                              ),
-                                              elevation: 16,
-                                              style: const TextStyle(
-                                                color: Colors.deepPurple,
-                                              ),
-                                              underline: Container(
-                                                height: 2,
-                                                color: Colors.deepPurpleAccent,
-                                              ),
-                                              onChanged: (String? value) {
-                                                if (value != null) {
+                                              IconButton(
+                                                tooltip: "Reset Counter",
+                                                onPressed: () {
                                                   prefs.appEventsList = [
                                                     UserEvents
-                                                        .counterLabelChanged,
+                                                        .resetCounterClicked,
                                                   ];
                                                   // FirebaseAnalytics.instance
                                                   //     .logEvent(
                                                   //       name:
                                                   //           UserEvents
-                                                  //               .counterLabelChanged,
+                                                  //               .resetCounterClicked,
                                                   //     );
-                                                  setModalState(() {
-                                                    counterLabelDropdownValue =
-                                                        value;
-                                                  });
                                                   cameraController
-                                                      .setLineCounterSettings(
-                                                        enableLineCounterStats:
-                                                            cameraController
-                                                                .value
-                                                                .enableLineCounterStats,
-                                                        lineCounterStatsLabel:
-                                                            value,
+                                                      .resetLineCounter();
+                                                  CustomSnackBar()
+                                                      .snackBarCounterReset();
+                                                },
+                                                icon: const Icon(
+                                                  Icons.refresh_rounded,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          // Stats Label
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              const Text(
+                                                'Stats Label',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              DropdownButton<String>(
+                                                value:
+                                                    counterLabelDropdownValue,
+                                                icon: const Icon(
+                                                  Icons.arrow_downward,
+                                                ),
+                                                elevation: 16,
+                                                style: const TextStyle(
+                                                  color: Colors.deepPurple,
+                                                ),
+                                                underline: Container(
+                                                  height: 2,
+                                                  color:
+                                                      Colors.deepPurpleAccent,
+                                                ),
+                                                onChanged: (String? value) {
+                                                  if (value != null) {
+                                                    prefs.appEventsList = [
+                                                      UserEvents
+                                                          .counterLabelChanged,
+                                                    ];
+                                                    // FirebaseAnalytics.instance
+                                                    //     .logEvent(
+                                                    //       name:
+                                                    //           UserEvents
+                                                    //               .counterLabelChanged,
+                                                    //     );
+                                                    setModalState(() {
+                                                      counterLabelDropdownValue =
+                                                          value;
+                                                    });
+                                                    cameraController
+                                                        .setLineCounterSettings(
+                                                          enableLineCounterStats:
+                                                              cameraController
+                                                                  .value
+                                                                  .enableLineCounterStats,
+                                                          lineCounterStatsLabel:
+                                                              value,
+                                                        );
+                                                    prefs.counterLabel =
+                                                        cameraController
+                                                            .value
+                                                            .lineCounterStatsLabel;
+                                                  }
+                                                },
+                                                items:
+                                                    labelsList.asMap().entries.map<
+                                                      DropdownMenuItem<String>
+                                                    >((entry) {
+                                                      final index =
+                                                          entry
+                                                              .key; // serial number starts from 0
+                                                      final value = entry.value;
+                                                      return DropdownMenuItem<
+                                                        String
+                                                      >(
+                                                        value: value,
+                                                        child: Text(
+                                                          '$index. $value',
+                                                        ),
                                                       );
-                                                  prefs.counterLabel =
-                                                      cameraController
-                                                          .value
-                                                          .lineCounterStatsLabel;
-                                                }
-                                              },
-                                              items:
-                                                  labelsList.asMap().entries.map<
-                                                    DropdownMenuItem<String>
-                                                  >((entry) {
-                                                    final index =
-                                                        entry
-                                                            .key; // serial number starts from 0
-                                                    final value = entry.value;
-                                                    return DropdownMenuItem<
-                                                      String
-                                                    >(
-                                                      value: value,
-                                                      child: Text(
-                                                        '$index. $value',
-                                                      ),
-                                                    );
-                                                  }).toList(),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 12.h),
-                                      ],
-                                    )
-                                    : const SizedBox.shrink(),
-                          ),
-                        ],
+                                                    }).toList(),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 12.h),
+                                        ],
+                                      )
+                                      : const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          );
-        },
-      );
-    });
-
-    // ✅ Resume when closed
-    bottomSheetController.closed.then((_) {
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
       _controller.resumeLivePrediction();
       CustomSnackBar().SnackBarMessage("Live Preview Resumed");
       debugPrint("Bottom sheet closed");
