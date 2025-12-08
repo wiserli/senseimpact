@@ -13,6 +13,7 @@ import 'package:pothole_detection_app/utils/indicators.dart';
 import 'package:pothole_detection_app/utils/permission_controller.dart';
 import 'package:pothole_detection_app/view/build_methods.dart';
 import 'package:pothole_detection_app/view/permission_screen.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_controller.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_preview.dart';
@@ -77,7 +78,7 @@ class HomeView extends StatefulWidget {
 class HomeViewState extends State<HomeView>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  final bool _isClockwise = false; // Track whether image is in landscape
+  bool _isClockwise = false; // Track whether image is in landscape
   Map<String, dynamic>? _pendingUpdateInfo;
   static const int CAMERA_LENS_FRONT = 0;
   static const int CAMERA_LENS_BACK = 1;
@@ -106,6 +107,7 @@ class HomeViewState extends State<HomeView>
     // const Text('OB Boxes'),
   ];
   var modelPath, metadataPath, mlModelPath;
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
   double? pitch;
   double? roll;
   String orientation = "portraitUp";
@@ -138,6 +140,88 @@ class HomeViewState extends State<HomeView>
     super.initState();
     checkPermissionsAndLoadModel();
     _initializeScreenshotDirectory();
+    _accelerometerSubscription = accelerometerEvents.listen((
+      AccelerometerEvent event,
+    ) {
+      final absoluteX = event.x.abs();
+      final absoluteY = event.y.abs();
+      final absoluteZ = event.z.abs();
+
+      String newOrientation;
+      if (absoluteZ > absoluteX && absoluteZ > absoluteY) {
+        newOrientation = orientation; // Default if Z-axis is dominant
+      } else {
+        if (absoluteX > absoluteY) {
+          newOrientation = event.x > 0 ? "landscapeRight" : "landscapeLeft";
+        } else {
+          newOrientation = event.y > 0 ? "portraitUp" : "portraitDown";
+        }
+      }
+      // print("orientation: $orientation");
+      // print("newOrientation: $newOrientation");
+      if (newOrientation != orientation) {
+        // print("newOrientation: $newOrientation");
+        _controller.updateOrientation(newOrientation);
+        setState(() {
+          previousOrientation = orientation;
+          orientation = newOrientation;
+          animationVisible = true;
+          if (previousOrientation == "portraitUp" &&
+              orientation == "landscapeLeft") {
+            _isClockwise = false;
+            // rotationAngle = math.pi + math.pi / 2;
+            rotationAngle = -math.pi / 2;
+          }
+          if (previousOrientation == "landscapeLeft" &&
+              orientation == "portraitDown") {
+            _isClockwise = false;
+            // rotationAngle = math.pi;
+            rotationAngle = -math.pi;
+          }
+          if (previousOrientation == "portraitDown" &&
+              orientation == "landscapeRight") {
+            _isClockwise = false;
+            // rotationAngle = math.pi / 2;
+            rotationAngle = -(math.pi + math.pi / 2);
+          }
+          if (previousOrientation == "landscapeRight" &&
+              orientation == "portraitUp") {
+            _isClockwise = false;
+            rotationAngle = 0;
+            // rotationAngle = 2*math.pi;
+          }
+          if (previousOrientation == "portraitUp" &&
+              orientation == "landscapeRight") {
+            _isClockwise = true;
+            rotationAngle = math.pi / 2;
+          }
+          if (previousOrientation == "landscapeRight" &&
+              orientation == "portraitDown") {
+            _isClockwise = true;
+            rotationAngle = math.pi;
+          }
+          if (previousOrientation == "portraitDown" &&
+              orientation == "landscapeLeft") {
+            _isClockwise = true;
+            rotationAngle = math.pi + math.pi / 2;
+          }
+          if (previousOrientation == "landscapeLeft" &&
+              orientation == "portraitUp") {
+            _isClockwise = true;
+            rotationAngle = 2 * math.pi; //2*math.pi
+          }
+          Future.delayed(const Duration(seconds: 2), () {
+            // Your command or code to execute after 1 second
+            if (mounted) {
+              setState(() {
+                animationVisible = false;
+              });
+            }
+          });
+        });
+        debugPrint("Orientation changed to $orientation");
+      }
+    });
   }
 
   @override
@@ -151,7 +235,7 @@ class HomeViewState extends State<HomeView>
     for (var timer in _snapshotTimerQueue) {
       timer.cancel();
     }
-    //_controller.pauseLivePrediction();
+    _accelerometerSubscription?.cancel();
     _controller.closeCamera();
     _controller.dispose();
     super.dispose();
