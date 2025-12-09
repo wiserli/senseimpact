@@ -49,6 +49,8 @@ dependencies:
   # Local Storage
   # sqflite: ^2.3.2
   shared_preferences: ^2.2.2
+  # Location
+  geolocator: ^14.0.2
   # Utilities
   flutter_screenutil: ^5.9.0
   google_fonts: ^6.1.0

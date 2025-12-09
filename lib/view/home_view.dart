@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:developer' as developer;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pothole_detection_app/configs/model_configs.dart';
 import 'package:pothole_detection_app/utils/indicators.dart';
+import 'package:pothole_detection_app/utils/location.dart';
 import 'package:pothole_detection_app/utils/permission_controller.dart';
 import 'package:pothole_detection_app/view/build_methods.dart';
 import 'package:pothole_detection_app/view/permission_screen.dart';
@@ -139,6 +142,7 @@ class HomeViewState extends State<HomeView>
   @override
   void initState() {
     super.initState();
+    checkLocationPermissionAndFetchLocation();
     checkPermissionsAndLoadModel();
     _initializeScreenshotDirectory();
     _accelerometerSubscription = accelerometerEvents.listen((
@@ -271,6 +275,11 @@ class HomeViewState extends State<HomeView>
               : CAMERA_LENS_FRONT;
       return (iosAdjustedStoredLens != currentLens);
     }
+  }
+
+  void checkLocationPermissionAndFetchLocation() async {
+    Position location = await LocationService.getCurrentLocation();
+    developer.log("Location: $location");
   }
 
   Future<void> checkPermissionsAndLoadModel() async {
