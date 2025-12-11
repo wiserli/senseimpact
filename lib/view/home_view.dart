@@ -142,8 +142,7 @@ class HomeViewState extends State<HomeView>
   @override
   void initState() {
     super.initState();
-    checkLocationPermissionAndFetchLocation();
-    checkPermissionsAndLoadModel();
+    _initializeApp();
     _initializeScreenshotDirectory();
     _accelerometerSubscription = accelerometerEvents.listen((
       AccelerometerEvent event,
@@ -246,6 +245,15 @@ class HomeViewState extends State<HomeView>
     super.dispose();
   }
 
+  // New method to handle sequential initialization
+  Future<void> _initializeApp() async {
+    // FIRST: Request location permission
+    await checkLocationPermissionAndFetchLocation();
+
+    // SECOND: Request other permissions (storage, notifications, etc.)
+    await checkPermissionsAndLoadModel();
+  }
+
   Future<void> _initializeScreenshotDirectory() async {
     if (Platform.isAndroid) {
       Directory? directory = await getExternalStorageDirectory();
@@ -277,8 +285,8 @@ class HomeViewState extends State<HomeView>
     }
   }
 
-  void checkLocationPermissionAndFetchLocation() async {
-    Position location = await LocationService.getCurrentLocation();
+  Future<void> checkLocationPermissionAndFetchLocation() async {
+    Position? location = await LocationService.getCurrentLocation(context);
     developer.log("Location: $location");
   }
 
