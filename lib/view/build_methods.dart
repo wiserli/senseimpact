@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -8,8 +9,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pothole_detection_app/configs/model_configs.dart';
+import 'package:pothole_detection_app/utils/location.dart';
+import 'package:pothole_detection_app/view/widgets/custom_widget.dart';
+import 'package:pothole_detection_app/view/widgets/speedometer.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_controller.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_preview.dart';
 import 'package:visionx/visionx.dart';
@@ -725,6 +730,124 @@ class BuildMethods {
           onPressed: onTrackAndCountButtonPressed,
           activeIcon: 'object_tracking.png',
           inActiveIcon: 'object_tracking.png',
+        ),
+      ),
+    );
+  }
+
+  Widget buildMetricsCard({
+    required String orientation,
+    required Stream<LocationUpdate> locationStream,
+    required Stream<double>? inferenceTimeStream,
+    required Stream<double>? fpsRateStream,
+  }) {
+    return Positioned(
+      top:
+          (orientation == 'landscapeRight')
+              ? -40.h
+              : (orientation == 'landscapeLeft')
+              ? null
+              : null,
+      left:
+          (orientation == 'landscapeRight')
+              ? 130.w
+              : (orientation == 'portraitUp' || orientation == 'portraitDown')
+              ? 20.w
+              : null,
+      // right: (orientation == 'landscapeLeft') ? 70.w : null,
+      child: Transform.rotate(
+        angle:
+            (orientation == 'landscapeRight')
+                ? pi / 2
+                : (orientation == 'landscapeLeft')
+                ? -pi / 2
+                : 0,
+        child: SafeArea(
+          child: Center(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(12.r),
+                  bottomRight: Radius.circular(12.r),
+                ),
+              ),
+              height: 220.h,
+              width: 122.w,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(left: 8.w),
+                        child: Image.asset(
+                          'assets/icons/stop_icon.png',
+                          height: 28.h,
+                          width: 28.w,
+                        ),
+                      ),
+                      Icon(
+                        Icons.keyboard_arrow_right,
+                        color: Color(0xFF16A34A),
+                        size: 36,
+                      ),
+                    ],
+                  ),
+                  StreamBuilder<LocationUpdate>(
+                    stream: locationStream,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return Column(
+                        children: [
+                          SizedBox(height: 6.h),
+                          DataBrick(
+                            text:
+                                "${(snapshot.data!.distance / 1000).toStringAsFixed(2)} Km",
+                            icon: Icon(
+                              Icons.route,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          SizedBox(height: 6.h),
+                          DataBrick(
+                            text:
+                                "${snapshot.data!.speedKmh.toStringAsFixed(1)} Km/h",
+                            icon: Speedometer(speed: snapshot.data!.speedKmh),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  SizedBox(height: 6.h),
+                  StreamBuilder<double?>(
+                    stream: inferenceTimeStream,
+                    builder: (context, snapshot) {
+                      final inferenceValue = snapshot.data ?? 0.0;
+                      return DataBrick(
+                        text: '${inferenceValue.toStringAsFixed(0)} ms',
+                        icon: Icon(Icons.timer, color: Colors.white, size: 24),
+                      );
+                    },
+                  ),
+                  SizedBox(height: 6.h),
+                  StreamBuilder<double?>(
+                    stream: fpsRateStream,
+                    builder: (context, snapshot) {
+                      final fpsValue = snapshot.data ?? 0.0;
+                      return DataBrick(
+                        text: "${fpsValue.toStringAsFixed(1)} fps",
+                        icon: Icon(Icons.speed, color: Colors.white, size: 24),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -137,6 +137,10 @@ class HomeViewState extends State<HomeView>
   double rotationAngle = 0;
   bool animationVisible = false;
   Timer? _timer;
+  StreamSubscription<Position>? positionStream;
+  Position? lastPosition;
+  double totalDistance = 0; // in meters
+  late Stream<LocationUpdate> _locationStream;
   // final double currentZoomFactor = 1.0;
 
   @override
@@ -242,6 +246,7 @@ class HomeViewState extends State<HomeView>
     _accelerometerSubscription?.cancel();
     _controller.closeCamera();
     _controller.dispose();
+    positionStream?.cancel();
     super.dispose();
   }
 
@@ -252,6 +257,9 @@ class HomeViewState extends State<HomeView>
 
     // SECOND: Request other permissions (storage, notifications, etc.)
     await checkPermissionsAndLoadModel();
+
+    // THIRD: Start location tracking (if needed)
+    _locationStream = LocationService.startTracking();
   }
 
   Future<void> _initializeScreenshotDirectory() async {
@@ -629,6 +637,12 @@ class HomeViewState extends State<HomeView>
                 ),
                 if (_showUpdateDialog && _pendingUpdateInfo != null)
                   _buildUpdateDialog(),
+                homeBuildMethods.buildMetricsCard(
+                  orientation: orientation,
+                  locationStream: _locationStream,
+                  inferenceTimeStream: objectDetector.inferenceTime,
+                  fpsRateStream: objectDetector.fpsRate,
+                ),
               ],
             ),
           ),

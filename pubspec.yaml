@@ -52,6 +52,7 @@ dependencies:
   # Location
   geolocator: ^14.0.2
   # Utilities
+  syncfusion_flutter_gauges: ^25.1.36
   flutter_screenutil: ^5.9.0
   google_fonts: ^6.1.0
   flutter_native_splash:

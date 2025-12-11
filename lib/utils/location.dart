@@ -3,11 +3,60 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
+  static StreamSubscription<Position>? _stream;
+  static Position? _lastPosition;
+  static double _totalDistance = 0;
+
   /// Public entry to get current location.
   /// This will block (show dialogs) until GPS + permission are available,
   /// or until the user never enables them (timeout stops waiting for resume).
   static Future<Position?> getCurrentLocation(BuildContext context) async {
     return await getLocationWithDialogs(context);
+  }
+
+  /// Starts tracking location updates and calculating total distance traveled.
+  static Stream<LocationUpdate> startTracking() async* {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      await Geolocator.requestPermission();
+    }
+
+    const settings = LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 0,
+    );
+
+    yield* Geolocator.getPositionStream(locationSettings: settings).map((
+      position,
+    ) {
+      // Distance
+      if (_lastPosition != null) {
+        final d = Geolocator.distanceBetween(
+          _lastPosition!.latitude,
+          _lastPosition!.longitude,
+          position.latitude,
+          position.longitude,
+        );
+        _totalDistance += d;
+      }
+
+      _lastPosition = position;
+
+      // Speed (m/s)
+      double speedMs = position.speed;
+
+      return LocationUpdate(
+        speed: speedMs,
+        speedKmh: speedMs * 3.6,
+        distance: _totalDistance,
+        position: position,
+      );
+    });
+  }
+
+  static void stopTracking() {
+    _stream?.cancel();
   }
 }
 
@@ -173,4 +222,18 @@ Future<bool> showForceDialog({
             ),
       ) ??
       false;
+}
+
+class LocationUpdate {
+  final double speed; // m/s
+  final double speedKmh; // km/h
+  final double distance; // total distance in meters
+  final Position position;
+
+  LocationUpdate({
+    required this.speed,
+    required this.speedKmh,
+    required this.distance,
+    required this.position,
+  });
 }
