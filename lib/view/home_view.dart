@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:developer' as developer;
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,10 +17,8 @@ import 'package:pothole_detection_app/utils/permission_controller.dart';
 import 'package:pothole_detection_app/view/build_methods.dart';
 import 'package:pothole_detection_app/view/permission_screen.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_controller.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_preview.dart';
-import 'package:visionx/visionx.dart';
 import 'package:visionx/visionx_model.dart';
 import 'package:visionx/visionx_platform_interface.dart';
 import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/line_counter_data_model.dart';
@@ -30,47 +27,15 @@ import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/segmented_o
 import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/detected_object.dart';
 import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/object_detector.dart';
 import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/object_detector_painter.dart';
-// import 'package:yolovx/components/custom_widgets.dart';
-// import 'package:yolovx/components/server_control_bottomsheet.dart';
-// import 'package:yolovx/database/screenshot_gallery_db.dart';
-// import 'package:yolovx/main.dart';
-// import 'package:yolovx/res/constants.dart';
-// import 'package:yolovx/res/user_events.dart';
-// import 'package:yolovx/theme/cubit/theme_cubit.dart';
-// import 'package:yolovx/utils/colors.dart';
-// import 'package:yolovx/utils/cpu_info.dart';
-// import 'package:yolovx/utils/custom_functions.dart';
-// import 'package:yolovx/utils/in_app_update.dart';
-// import 'package:yolovx/utils/indicators.dart';
-// import 'package:yolovx/utils/line_drawer.dart';
-// import 'package:yolovx/utils/permission_controller.dart';
-// import 'package:yolovx/utils/remote_config.dart';
-// import 'package:yolovx/utils/system_utilization.dart';
-// import 'package:yolovx/utils/user_journey.dart' hide prefs;
-// import 'package:yolovx/views/post_auth/home_view/components/build_methods.dart';
-// import 'package:yolovx/views/post_auth/home_view/ip_cam_view.dart';
-// import 'package:yolovx/views/post_auth/home_view/main_page_view.dart';
-// import 'package:yolovx/views/post_auth/model_view/model_repo.dart';
-// import 'package:yolovx/views/post_auth/permission_screen.dart';
-// import 'package:yolovx/views/post_auth/profile_view/ai_benchmarking_view.dart';
-// import 'package:yolovx/views/post_auth/profile_view/profile_view.dart';
-import '../../../components/bottom_bar.dart';
-import '../../../utils/animations/object_detection_loading_indicator_animation.dart';
-// import '../../pre_auth/initial_model_download_view.dart';
-// import '../profile_view/app_settings_view.dart';
-// import 'components/custom_slider.dart';
-// import 'package:sensors_plus/sensors_plus.dart';
 import '../main.dart';
 import '../res/constants.dart';
 import '../res/user_events.dart';
 import '../theme/cubit/theme_cubit.dart';
 import 'dart:math' as math;
-
 import '../utils/colors.dart';
 import '../utils/custom_functions.dart';
 import '../utils/line_drawer.dart';
 import 'custom_slider.dart';
-import 'initial_model_download_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -96,20 +61,11 @@ class HomeViewState extends State<HomeView>
     trackingAlgorithm: "IOU",
   );
   late ObjectDetector objectDetector;
-  bool _isControllerDisposed = false;
-  final bool _isLoopRunning = false;
   var topLabels;
-  bool _showUpdateDialog = false;
-
-  // Stream<List<DetectedObject?>?>? detectionResultStream;
   bool isLoading = true; // Added to track loading state
   bool isError = false;
   bool isAndroid = false;
-  final operationList = [
-    const Text('Detection'),
-    // const Text('Segmentation'),
-    // const Text('OB Boxes'),
-  ];
+  final operationList = [const Text('Detection')];
   var modelPath, metadataPath, mlModelPath;
   StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
   double? pitch;
@@ -145,7 +101,6 @@ class HomeViewState extends State<HomeView>
       StreamController.broadcast();
   final List<double> _buffer = [];
   static const int bufferSize = 50; // 1-second window approx
-  // final double currentZoomFactor = 1.0;
 
   @override
   void initState() {
@@ -169,10 +124,7 @@ class HomeViewState extends State<HomeView>
           newOrientation = event.y > 0 ? "portraitUp" : "portraitDown";
         }
       }
-      // print("orientation: $orientation");
-      // print("newOrientation: $newOrientation");
       if (newOrientation != orientation) {
-        // print("newOrientation: $newOrientation");
         _controller.updateOrientation(newOrientation);
         setState(() {
           previousOrientation = orientation;
@@ -181,26 +133,22 @@ class HomeViewState extends State<HomeView>
           if (previousOrientation == "portraitUp" &&
               orientation == "landscapeLeft") {
             _isClockwise = false;
-            // rotationAngle = math.pi + math.pi / 2;
             rotationAngle = -math.pi / 2;
           }
           if (previousOrientation == "landscapeLeft" &&
               orientation == "portraitDown") {
             _isClockwise = false;
-            // rotationAngle = math.pi;
             rotationAngle = -math.pi;
           }
           if (previousOrientation == "portraitDown" &&
               orientation == "landscapeRight") {
             _isClockwise = false;
-            // rotationAngle = math.pi / 2;
             rotationAngle = -(math.pi + math.pi / 2);
           }
           if (previousOrientation == "landscapeRight" &&
               orientation == "portraitUp") {
             _isClockwise = false;
             rotationAngle = 0;
-            // rotationAngle = 2*math.pi;
           }
           if (previousOrientation == "portraitUp" &&
               orientation == "landscapeRight") {
@@ -255,7 +203,6 @@ class HomeViewState extends State<HomeView>
   @override
   void dispose() {
     print('dispose called');
-    _isControllerDisposed = true;
     _snapshotTimer?.cancel();
     isTrackingOn = false;
     isCountingOn = false;
@@ -306,21 +253,6 @@ class HomeViewState extends State<HomeView>
     }
   }
 
-  bool shouldSwitchCamera(int storedLens, int currentLens) {
-    if (Platform.isAndroid) {
-      // Android: 0=front, 1=back
-      return (storedLens != currentLens);
-    } else {
-      // iOS: 0=back, 1=front
-      // We need to invert the logic for iOS
-      int iosAdjustedStoredLens =
-          storedLens == CAMERA_LENS_FRONT
-              ? CAMERA_LENS_BACK
-              : CAMERA_LENS_FRONT;
-      return (iosAdjustedStoredLens != currentLens);
-    }
-  }
-
   Future<void> checkLocationPermissionAndFetchLocation() async {
     Position? location = await LocationService.getCurrentLocation(context);
     developer.log("Location: $location");
@@ -367,9 +299,7 @@ class HomeViewState extends State<HomeView>
           model = LocalYoloModel(
             id: '',
             task: Task.detect,
-            // or Task.classify
             format: Format.tflite,
-            // or Format.coreml
             modelPath: modelPath,
             metadataPath: metadataPath,
             inputsize: await readMetadataYamlImageSize(metadataPath),
@@ -378,9 +308,7 @@ class HomeViewState extends State<HomeView>
           model = LocalYoloModel(
             id: '',
             task: Task.segment,
-            // or Task.classify
             format: Format.tflite,
-            // or Format.coreml
             modelPath: modelPath,
             metadataPath: metadataPath,
             inputsize: await readMetadataYamlImageSize(metadataPath),
@@ -396,12 +324,6 @@ class HomeViewState extends State<HomeView>
           objectDetector.setIouThreshold(_iouThreshold);
           objectDetector.setNumItemsThreshold(_numItemsThreshold.ceil());
           objectDetector.setMaxMissedFrames(int.parse(prefs.maxMissedFrames));
-          if (shouldSwitchCamera(
-            int.parse(prefs.cameraLens),
-            _controller.value.lensDirection,
-          )) {
-            // handleToggleLensDirection(context, _controller);
-          }
           isLoading = false;
           isError = false;
         });
@@ -420,9 +342,7 @@ class HomeViewState extends State<HomeView>
           model = LocalYoloModel(
             id: '',
             task: Task.segment,
-            // or Task.classify
             format: Format.coreml,
-            // or Format.coreml
             modelPath: mlModelPath,
             inputsize: initialInputSize,
           );
@@ -431,22 +351,11 @@ class HomeViewState extends State<HomeView>
           objectDetector = ObjectDetector(model: model!);
         }
         await objectDetector.loadModel(useGpu: true);
-        print(
-          "prefs.cameraLens ${prefs.cameraLens} _controller.value.lensDirection (c2)${_controller.value.lensDirection}",
-        );
         setState(() {
           objectDetector.setConfidenceThreshold(_confidenceThreshold);
           objectDetector.setIouThreshold(_iouThreshold);
           objectDetector.setNumItemsThreshold(_numItemsThreshold.ceil());
           objectDetector.setMaxMissedFrames(int.parse(prefs.maxMissedFrames));
-          if (shouldSwitchCamera(
-            int.parse(prefs.cameraLens),
-            _controller.value.lensDirection,
-          )) {
-            // handleToggleLensDirection(context, _controller);
-
-            //print("camera toggled");
-          }
           isLoading = false;
           isError = false;
         });
@@ -454,62 +363,8 @@ class HomeViewState extends State<HomeView>
         throw Exception('Platform not supported');
       }
     } catch (e) {
-      if (e.toString().contains("Unable to load asset:") &&
-          prefs.chosenTfliteModelFileName != "" &&
-          e.toString().contains(
-            prefs.chosenTfliteModelFileName.replaceAll('.aes', '').trim(),
-          )) {
-        prefs.chosenModelName = "";
-        prefs.chosenTfliteModelFileName = "";
-        prefs.chosenTfliteModelFileLink = "";
-        prefs.chosenMetadataFileName = "";
-        prefs.chosenMetadataFileLink = "";
-        prefs.chosenMLModelModelFileName = "";
-        prefs.chosenMLModelFileLink = "";
-        prefs.chosenEncryptionSecretKey = "";
-        prefs.chosenSharedModelOwnerId = "";
-        setState(() {
-          loadModel();
-        });
-      } else if (e.toString().contains("Unable to load asset:") &&
-          e.toString().contains(
-            initialTfliteModelFileName.replaceAll('.aes', '').trim(),
-          )) {
-        CustomSnackBar().showAlertDialog(
-          title: "Download Required!",
-          message: "Default Model of size 2 mb will be downloaded.",
-          rbtntxt: "Proceed",
-          rbtnFunction: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const InitialModelDownloadView(),
-              ),
-            );
-          },
-          ctx: context,
-        );
-        setState(() {
-          isError = true;
-        });
-      } else {
-        debugPrint(e.toString());
-      }
+      developer.log(e.toString());
     }
-  }
-
-  void showScreenshotPreview() {
-    setState(() {
-      showPreview = true;
-    });
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          showPreview = false;
-        });
-      }
-    });
   }
 
   void toggleObjectCountVisible() {
@@ -518,17 +373,12 @@ class HomeViewState extends State<HomeView>
     });
   }
 
-  // Future<double> getCpuUsage() async {
-  //   return await _channel.invokeMethod('getCpuUsage');
-  // }
-
   @override
   Widget build(BuildContext context) {
     return isLoading
         ? isError
             ? _buildErrorView(context)
             : _buildCameraView(context, orientation, isLoading)
-        // : _buildIPCameraPreview();
         : _buildCameraView(context, orientation, isLoading);
   }
 
@@ -547,20 +397,8 @@ class HomeViewState extends State<HomeView>
               ),
             ),
             const SizedBox(height: 10),
-
             TextButton(
-              onPressed: () {
-                prefs.appEventsList = [UserEvents.initialModelDownloadClick];
-                // FirebaseAnalytics.instance.logEvent(
-                //   name: UserEvents.initialModelDownloadClick,
-                // );
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const InitialModelDownloadView(),
-                  ),
-                );
-              },
+              onPressed: () {},
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -609,32 +447,16 @@ class HomeViewState extends State<HomeView>
                   _buildCameraPreview(orientation),
                 if (isCountingOn)
                   LineDrawerScreen(_controller, orientation: orientation),
-                homeBuildMethods.buildLogo(orientation: orientation),
                 homeBuildMethods.buildTimeAndFps(
                   orientation: orientation,
                   objectDetector: objectDetector,
                   inferenceTimeStream: objectDetector.inferenceTime,
                   fpsRateStream: objectDetector.fpsRate,
                 ),
-                homeBuildMethods.buildGestureDetector(
-                  orientation: orientation,
-                  objectCountVisible: objectCountVisible,
-                  onToggle: toggleObjectCountVisible,
-                ),
-                homeBuildMethods.buildModelNameRow(orientation: orientation),
-                homeBuildMethods.buildDetectionRow(
-                  task: ModelConfigs.defaultMode,
-                  orientation: orientation,
-                  showrtspindicator: false,
-                  isRtspPlaying: false,
-                ),
                 homeBuildMethods.buildSettingsButton(
                   orientation: orientation,
                   onSettingsButtonPressed: () {
                     prefs.appEventsList = [UserEvents.parameterTuningButton];
-                    // FirebaseAnalytics.instance.logEvent(
-                    //   name: UserEvents.parameterTuningButton,
-                    // );
                     showDetectionSettings(
                       context: context,
                       objectDetector: objectDetector,
@@ -663,8 +485,6 @@ class HomeViewState extends State<HomeView>
                     );
                   },
                 ),
-                if (_showUpdateDialog && _pendingUpdateInfo != null)
-                  _buildUpdateDialog(),
                 homeBuildMethods.buildMetricsCard(
                   orientation: orientation,
                   locationStream: _locationStream,
@@ -773,9 +593,6 @@ class HomeViewState extends State<HomeView>
                   labelCount.entries.toList()..sort(
                     (a, b) => b.value.compareTo(a.value),
                   ); // Sort by occurrence count
-              // sendDetectionsManually(topLabels);
-              // webSocket.add(topLabels);
-              // Convert the list of MapEntry to a Map
               Map<String, int> map = Map.fromEntries(topLabels);
               // Transform the map to the desired format
               List<Map<String, dynamic>> transformedList =
@@ -784,16 +601,6 @@ class HomeViewState extends State<HomeView>
                   }).toList();
               // Encode the Map to a JSON string
               String jsonString = jsonEncode(transformedList);
-              // if (activeWebSocket != null) {
-              //   String currentTime = DateTime.now().toString();
-              //   var data = jsonEncode({
-              //     "timestamp": currentTime,
-              //     "detections": transformedList,
-              //     "inferenceTime": streamResult.inferenceTime,
-              //     "fpsRate": streamResult.fpsRate
-              //   });
-              //   activeWebSocket!.add(data);
-              // }
               print(topLabels);
               return CustomPaint(
                 painter: ObjectDetectorPainter(
@@ -929,8 +736,6 @@ class HomeViewState extends State<HomeView>
                   labelCount.entries.toList()..sort(
                     (a, b) => b.value.compareTo(a.value),
                   ); // Sort by occurrence count
-              // sendDetectionsManually(topLabels);
-              // webSocket.add(topLabels);
               // Convert the list of MapEntry to a Map
               Map<String, int> map = Map.fromEntries(topLabels);
               // Transform the map to the desired format
@@ -940,16 +745,6 @@ class HomeViewState extends State<HomeView>
                   }).toList();
               // Encode the Map to a JSON string
               String jsonString = jsonEncode(transformedList);
-              // if (activeWebSocket != null) {
-              //   String currentTime = DateTime.now().toString();
-              //   var data = jsonEncode({
-              //     "timestamp": currentTime,
-              //     "detections": transformedList,
-              //     "inferenceTime": streamResult.inferenceTime,
-              //     "fpsRate": streamResult.fpsRate
-              //   });
-              //   activeWebSocket!.add(data);
-              // }
               print(topLabels);
               return Stack(
                 children: [
@@ -980,7 +775,6 @@ class HomeViewState extends State<HomeView>
                       isConfidenceValueVisible: prefs.showConfidence,
                       strokeWidth: 2.5,
                       trackingEnabled: _controller.value.trackingEnabled,
-                      // isConfidenceValueVisible: true
                     ),
                     child: Stack(
                       children: [
@@ -1139,264 +933,6 @@ class HomeViewState extends State<HomeView>
     );
   }
 
-  Widget _buildUpdateDialog() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Update icon with animation
-            TweenAnimationBuilder(
-              tween: Tween<double>(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 500),
-              builder: (context, double value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.primaries[0].withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.system_update_rounded,
-                      size: 40,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            // Title
-            Text(
-              'New Update Available!',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            // Version info
-            Text(
-              'Version ${_pendingUpdateInfo!['latestVersion']}',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 20),
-            // Update message
-            Text(
-              _pendingUpdateInfo!['updateMessage'],
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
-            // Update buttons
-            Row(
-              children: [
-                if (!_pendingUpdateInfo!['isForcedUpdate'])
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _showUpdateDialog = false;
-                        });
-                      },
-                      child: const Text('Later'),
-                    ),
-                  ),
-                if (!_pendingUpdateInfo!['isForcedUpdate'])
-                  const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final url =
-                          Platform.isIOS
-                              ? 'https://apps.apple.com/us/app/yolovx/id6499067892'
-                              : 'https://play.google.com/store/apps/details?id=com.wiserli.yolovx';
-                      if (await canLaunchUrl(Uri.parse(url))) {
-                        await launchUrl(Uri.parse(url));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Update Now'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void showLensOptions({
-    required BuildContext context,
-    required bool isIpCamView,
-  }) async {
-    int? selectedIndex;
-    bool ipViewSelected = prefs.authFlag; // Open list by default if logged in
-    Map<int, bool> cameraStatus = {};
-    Map<int, bool> checkingStatus = {};
-
-    await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            if (prefs.authFlag && checkingStatus.isEmpty) {
-              for (int index = 0; index < cameraList.length; index++) {
-                checkingStatus[index] = true;
-                setModalState(() {});
-
-                String link = cameraList[index].values.first['link'];
-              }
-            }
-            return Padding(
-              padding: const EdgeInsets.only(top: 16.0, bottom: 24),
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.switch_camera),
-                    title: const Text("IP Camera"),
-                    trailing:
-                        prefs.authFlag
-                            ? GestureDetector(
-                              onTap:
-                                  () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/profile'),
-                              child: const Icon(Icons.settings_outlined),
-                            )
-                            : const Icon(Icons.lock, color: Colors.red),
-                    onTap: () {
-                      if (!prefs.authFlag) {
-                        CustomSnackBar().snackBarLoginReqIPCamera(context);
-                      }
-                    },
-                  ),
-                  if (!isIpCamView && ipViewSelected)
-                    Column(
-                      children: [
-                        if (cameraList.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text(
-                              "The IP camera list is currently empty.\nPlease add an IP camera by navigating to\nProfile > IP Camera Settings.",
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        if (cameraList.isNotEmpty)
-                          SizedBox(
-                            height: 200.h,
-                            child: ListView.builder(
-                              itemCount: cameraList.length,
-                              itemBuilder: (context, index) {
-                                bool? isWorking = cameraStatus[index];
-                                bool isChecking =
-                                    checkingStatus[index] ?? false;
-
-                                return ListTile(
-                                  title: Text(
-                                    cameraList[index].values.first['name'],
-                                  ),
-                                  subtitle:
-                                      isChecking
-                                          ? const Text(
-                                            "Checking...",
-                                            style: TextStyle(
-                                              color: Colors.orange,
-                                            ),
-                                          )
-                                          : Text(
-                                            isWorking == true
-                                                ? "Status: Working"
-                                                : "Status: Not Working",
-                                            style: TextStyle(
-                                              color:
-                                                  isWorking == true
-                                                      ? Colors.green
-                                                      : Colors.red,
-                                            ),
-                                          ),
-                                  onTap: () {
-                                    setModalState(() {
-                                      selectedIndex = index;
-                                    });
-                                  },
-                                  trailing:
-                                      selectedIndex == index
-                                          ? const Icon(
-                                            Icons.check_circle,
-                                            color: Colors.blue,
-                                          )
-                                          : const Icon(Icons.circle_outlined),
-                                );
-                              },
-                            ),
-                          ),
-                        if (selectedIndex != null)
-                          ListTile(
-                            title: Text(
-                              "Selected: ${cameraList[selectedIndex!].values.first['name']}",
-                            ),
-                            trailing: ElevatedButton(
-                              onPressed: () {
-                                String selectedCamera =
-                                    cameraList[selectedIndex!]
-                                        .values
-                                        .first['link'];
-
-                                Navigator.pop(context);
-                                prefs.appEventsList = [
-                                  UserEvents.cameraSwitchIpCam,
-                                ];
-                                // FirebaseAnalytics.instance.logEvent(
-                                //   name: UserEvents.cameraSwitchIpCam,
-                                // );
-                                Future.delayed(const Duration(seconds: 1));
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    settings: const RouteSettings(
-                                      name: UserEvents.ipCamPageView,
-                                    ),
-                                    builder:
-                                        (context) => BottomNavBar(
-                                          initialPage: 0,
-                                          initialModelViewTab: 1,
-                                          additionalArg: selectedCamera,
-                                        ),
-                                  ),
-                                );
-                              },
-                              child: const Text("Go ahead!"),
-                            ),
-                          ),
-                      ],
-                    ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   // Dart
   // Replace the existing showTrackAndCountSettings bottom-sheet logic with this.
   void showTrackAndCountSettings({
@@ -1417,14 +953,6 @@ class HomeViewState extends State<HomeView>
     // ✅ Pause when opening
     CustomSnackBar().SnackBarMessage("Live Preview Paused");
     _controller.pauseLivePrediction();
-    // final bottomSheetController = Scaffold.of(context).showBottomSheet((
-    //   BuildContext context,
-    // ) {
-    //   bool isTrackerExpanded = false;
-    //   bool isCounterExpanded = false;
-    //
-    //   return
-    // });
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1581,12 +1109,6 @@ class HomeViewState extends State<HomeView>
                                                     UserEvents
                                                         .resetTrackerClicked,
                                                   ];
-                                                  // FirebaseAnalytics.instance
-                                                  //     .logEvent(
-                                                  //       name:
-                                                  //           UserEvents
-                                                  //               .resetTrackerClicked,
-                                                  //     );
                                                   cameraController
                                                       .resetTrackingId();
                                                   CustomSnackBar()
@@ -1631,12 +1153,6 @@ class HomeViewState extends State<HomeView>
                                                       UserEvents
                                                           .trackingAlgorithmChanged,
                                                     ];
-                                                    // FirebaseAnalytics.instance
-                                                    //     .logEvent(
-                                                    //       name:
-                                                    //           UserEvents
-                                                    //               .trackingAlgorithmChanged,
-                                                    //     );
                                                     cameraController
                                                         .setTrackingSettings(
                                                           trackingEnabled:
@@ -1798,12 +1314,6 @@ class HomeViewState extends State<HomeView>
                                                     UserEvents
                                                         .resetCounterClicked,
                                                   ];
-                                                  // FirebaseAnalytics.instance
-                                                  //     .logEvent(
-                                                  //       name:
-                                                  //           UserEvents
-                                                  //               .resetCounterClicked,
-                                                  //     );
                                                   cameraController
                                                       .resetLineCounter();
                                                   CustomSnackBar()

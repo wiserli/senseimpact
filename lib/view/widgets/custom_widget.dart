@@ -9,8 +9,8 @@ class DataBrick extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: BoxConstraints(minWidth: 118.w),
       height: 38.h,
-      width: 118.w,
       decoration: BoxDecoration(
         color: Color(0xFF16A34A),
         borderRadius: BorderRadius.circular(10.r),
