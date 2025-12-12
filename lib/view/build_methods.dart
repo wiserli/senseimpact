@@ -740,6 +740,7 @@ class BuildMethods {
     required Stream<LocationUpdate> locationStream,
     required Stream<double>? inferenceTimeStream,
     required Stream<double>? fpsRateStream,
+    required Stream<double> roughnessStream,
   }) {
     return Positioned(
       top:
@@ -819,6 +820,21 @@ class BuildMethods {
                             icon: Speedometer(speed: snapshot.data!.speedKmh),
                           ),
                         ],
+                      );
+                    },
+                  ),
+                  SizedBox(height: 6.h),
+                  StreamBuilder<double>(
+                    stream: roughnessStream,
+                    builder: (context, snapshot) {
+                      double rmsValue = snapshot.data ?? 0.0;
+                      return DataBrick(
+                        text: rmsValue.toStringAsFixed(3),
+                        icon: Image.asset(
+                          "assets/icons/road.png",
+                          height: 24,
+                          width: 24,
+                        ),
                       );
                     },
                   ),

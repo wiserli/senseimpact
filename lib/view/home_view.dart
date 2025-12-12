@@ -141,6 +141,10 @@ class HomeViewState extends State<HomeView>
   Position? lastPosition;
   double totalDistance = 0; // in meters
   late Stream<LocationUpdate> _locationStream;
+  final StreamController<double> _roughnessStream =
+      StreamController.broadcast();
+  final List<double> _buffer = [];
+  static const int bufferSize = 50; // 1-second window approx
   // final double currentZoomFactor = 1.0;
 
   @override
@@ -229,6 +233,22 @@ class HomeViewState extends State<HomeView>
         });
         debugPrint("Orientation changed to $orientation");
       }
+
+      /// Road Roughness Calculation Data Collection
+      double az = event.z - 9.81; // Remove Earth's gravity
+
+      _buffer.add(az);
+      if (_buffer.length > bufferSize) {
+        _buffer.removeAt(0);
+      }
+
+      // --- Roughness Calculation (RMS) ---
+      double rms = sqrt(
+        _buffer.map((v) => v * v).reduce((a, b) => a + b) / _buffer.length,
+      );
+
+      // Push value to StreamBuilder
+      _roughnessStream.add(rms);
     });
   }
 
@@ -247,6 +267,7 @@ class HomeViewState extends State<HomeView>
     _controller.closeCamera();
     _controller.dispose();
     positionStream?.cancel();
+    _roughnessStream.close();
     super.dispose();
   }
 
@@ -260,6 +281,13 @@ class HomeViewState extends State<HomeView>
 
     // THIRD: Start location tracking (if needed)
     _locationStream = LocationService.startTracking();
+  }
+
+  String getRoadStatus(double rms) {
+    if (rms < 0.8) return "Smooth Road";
+    if (rms < 1.5) return "Normal Road";
+    if (rms < 2.5) return "Rough Road";
+    return "Very Rough Road";
   }
 
   Future<void> _initializeScreenshotDirectory() async {
@@ -642,6 +670,7 @@ class HomeViewState extends State<HomeView>
                   locationStream: _locationStream,
                   inferenceTimeStream: objectDetector.inferenceTime,
                   fpsRateStream: objectDetector.fpsRate,
+                  roughnessStream: _roughnessStream.stream,
                 ),
               ],
             ),
