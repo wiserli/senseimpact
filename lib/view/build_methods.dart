@@ -8,6 +8,7 @@ import 'package:pothole_detection_app/utils/location.dart';
 import 'package:pothole_detection_app/utils/time_and_fps.dart';
 import 'package:pothole_detection_app/view/widgets/custom_widget.dart';
 import 'package:pothole_detection_app/view/widgets/speedometer.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/object_detector.dart';
 import '../components/custom_widgets.dart';
 
@@ -126,21 +127,17 @@ class BuildMethods {
     required Stream<double>? inferenceTimeStream,
     required Stream<double>? fpsRateStream,
     required Stream<double> roughnessStream,
+    required AccelerometerEvent? accelerometerEvent,
+    required GyroscopeEvent? gyroscopeEvent,
   }) {
     return Positioned(
-      // top:
-      //     (orientation == 'landscapeRight')
-      //         ? -40.h
-      //         : (orientation == 'landscapeLeft')
-      //         ? -40.h
-      //         : null,
       left:
           (orientation == 'landscapeRight')
-              ? 130.w
+              ? 80.w
               : (orientation == 'portraitUp' || orientation == 'portraitDown')
               ? 20.w
               : null,
-      right: (orientation == 'landscapeLeft') ? 130.w : null,
+      right: (orientation == 'landscapeLeft') ? 80.w : null,
       child: Transform.rotate(
         angle:
             (orientation == 'landscapeRight')
@@ -158,90 +155,212 @@ class BuildMethods {
                 bottomRight: Radius.circular(12.r),
               ),
             ),
-            child: Column(
+            child: Row(
               children: [
-                SizedBox(
-                  width: 118.w,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Image.asset(
-                        'assets/icons/stop_icon.png',
-                        height: 28.h,
-                        width: 28.w,
+                Column(
+                  children: [
+                    SizedBox(
+                      width: 118.w,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Image.asset(
+                            'assets/icons/stop_icon.png',
+                            height: 28.h,
+                            width: 28.w,
+                          ),
+                          Icon(
+                            Icons.keyboard_arrow_right,
+                            color: Color(0xFF16A34A),
+                            size: 36,
+                          ),
+                        ],
                       ),
-                      Icon(
-                        Icons.keyboard_arrow_right,
-                        color: Color(0xFF16A34A),
-                        size: 36,
-                      ),
-                    ],
-                  ),
-                ),
-                StreamBuilder<LocationUpdate>(
-                  stream: locationStream,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    return Column(
-                      children: [
-                        SizedBox(height: 6.h),
-                        DataBrick(
-                          text:
-                              "${(snapshot.data!.distance / 1000).toStringAsFixed(2)} Km",
+                    ),
+                    StreamBuilder<LocationUpdate>(
+                      stream: locationStream,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        return Column(
+                          children: [
+                            SizedBox(height: 6.h),
+                            DataBrick(
+                              text:
+                                  "${(snapshot.data!.distance / 1000).toStringAsFixed(2)} Km",
+                              icon: Icon(
+                                Icons.route,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            SizedBox(height: 6.h),
+                            DataBrick(
+                              text:
+                                  "${snapshot.data!.speedKmh.toStringAsFixed(1)} Km/h",
+                              icon: Speedometer(speed: snapshot.data!.speedKmh),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    SizedBox(height: 6.h),
+                    StreamBuilder<double>(
+                      stream: roughnessStream,
+                      builder: (context, snapshot) {
+                        double rmsValue = snapshot.data ?? 0.0;
+                        return DataBrick(
+                          text: rmsValue.toStringAsFixed(3),
+                          icon: Image.asset(
+                            "assets/icons/road.png",
+                            height: 24,
+                            width: 24,
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(height: 6.h),
+                    StreamBuilder<double?>(
+                      stream: inferenceTimeStream,
+                      builder: (context, snapshot) {
+                        final inferenceValue = snapshot.data ?? 0.0;
+                        return DataBrick(
+                          text: '${inferenceValue.toStringAsFixed(0)} ms',
                           icon: Icon(
-                            Icons.route,
+                            Icons.timer,
                             color: Colors.white,
                             size: 24,
                           ),
-                        ),
-                        SizedBox(height: 6.h),
-                        DataBrick(
-                          text:
-                              "${snapshot.data!.speedKmh.toStringAsFixed(1)} Km/h",
-                          icon: Speedometer(speed: snapshot.data!.speedKmh),
-                        ),
-                      ],
-                    );
-                  },
+                        );
+                      },
+                    ),
+                    SizedBox(height: 6.h),
+                    StreamBuilder<double?>(
+                      stream: fpsRateStream,
+                      builder: (context, snapshot) {
+                        final fpsValue = snapshot.data ?? 0.0;
+                        return DataBrick(
+                          text: "${fpsValue.toStringAsFixed(1)} fps",
+                          icon: Icon(
+                            Icons.speed,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                SizedBox(height: 6.h),
-                StreamBuilder<double>(
-                  stream: roughnessStream,
-                  builder: (context, snapshot) {
-                    double rmsValue = snapshot.data ?? 0.0;
-                    return DataBrick(
-                      text: rmsValue.toStringAsFixed(3),
-                      icon: Image.asset(
-                        "assets/icons/road.png",
-                        height: 24,
-                        width: 24,
+
+                ///Accelorometer Column
+                Column(
+                  children: [
+                    SizedBox(
+                      width: 90.w,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Acce",
+                            style: TextStyle(
+                              color: Color(0xFF16A34A),
+                              fontSize: 20,
+                            ),
+                            softWrap: true,
+                          ),
+                          Icon(
+                            Icons.keyboard_arrow_right,
+                            color: Color(0xFF16A34A),
+                            size: 36,
+                          ),
+                        ],
                       ),
-                    );
-                  },
+                    ),
+                    SizedBox(height: 6.h),
+                    DataBrick(
+                      minWidth: 80,
+                      text: (accelerometerEvent?.x ?? 0).toStringAsFixed(1),
+                      icon: Text(
+                        "X",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ),
+                    SizedBox(height: 6.h),
+                    DataBrick(
+                      minWidth: 80,
+                      text: (accelerometerEvent?.y ?? 0).toStringAsFixed(1),
+                      icon: Text(
+                        "Y",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ),
+                    SizedBox(height: 6.h),
+                    DataBrick(
+                      minWidth: 80,
+                      text: (accelerometerEvent?.z ?? 0).toStringAsFixed(1),
+                      icon: Text(
+                        "Z",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 6.h),
-                StreamBuilder<double?>(
-                  stream: inferenceTimeStream,
-                  builder: (context, snapshot) {
-                    final inferenceValue = snapshot.data ?? 0.0;
-                    return DataBrick(
-                      text: '${inferenceValue.toStringAsFixed(0)} ms',
-                      icon: Icon(Icons.timer, color: Colors.white, size: 24),
-                    );
-                  },
-                ),
-                SizedBox(height: 6.h),
-                StreamBuilder<double?>(
-                  stream: fpsRateStream,
-                  builder: (context, snapshot) {
-                    final fpsValue = snapshot.data ?? 0.0;
-                    return DataBrick(
-                      text: "${fpsValue.toStringAsFixed(1)} fps",
-                      icon: Icon(Icons.speed, color: Colors.white, size: 24),
-                    );
-                  },
+
+                ///Gyrometer Column
+                Column(
+                  children: [
+                    SizedBox(
+                      width: 90.w,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Gyro",
+                            style: TextStyle(
+                              color: Color(0xFF16A34A),
+                              fontSize: 20,
+                            ),
+                            softWrap: true,
+                          ),
+                          Icon(
+                            Icons.keyboard_arrow_right,
+                            color: Color(0xFF16A34A),
+                            size: 36,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 6.h),
+                    DataBrick(
+                      minWidth: 80,
+                      text: (gyroscopeEvent?.x ?? 0).toStringAsFixed(1),
+                      icon: Text(
+                        "X",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ),
+                    SizedBox(height: 6.h),
+                    DataBrick(
+                      minWidth: 80,
+                      text: (gyroscopeEvent?.y ?? 0).toStringAsFixed(1),
+                      icon: Text(
+                        "Y",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ),
+                    SizedBox(height: 6.h),
+                    DataBrick(
+                      minWidth: 80,
+                      text: (gyroscopeEvent?.z ?? 0).toStringAsFixed(1),
+                      icon: Text(
+                        "Z",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

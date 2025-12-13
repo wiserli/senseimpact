@@ -101,12 +101,83 @@ class HomeViewState extends State<HomeView>
       StreamController.broadcast();
   final List<double> _buffer = [];
   static const int bufferSize = 50; // 1-second window approx
+  AccelerometerEvent? _accelerometerEvent;
+  GyroscopeEvent? _gyroscopeEvent;
+  final _streamSubscriptions = <StreamSubscription<dynamic>>[];
+  Duration sensorInterval = SensorInterval.normalInterval;
+  static const Duration _ignoreDuration = Duration(milliseconds: 20);
+  DateTime? _accelerometerUpdateTime;
+  DateTime? _gyroscopeUpdateTime;
+  int? _accelerometerLastInterval;
+  int? _gyroscopeLastInterval;
 
   @override
   void initState() {
     super.initState();
     _initializeApp();
     _initializeScreenshotDirectory();
+    _streamSubscriptions.add(
+      accelerometerEventStream(samplingPeriod: sensorInterval).listen(
+        (AccelerometerEvent event) {
+          final now = event.timestamp;
+          setState(() {
+            _accelerometerEvent = event;
+            if (_accelerometerUpdateTime != null) {
+              final interval = now.difference(_accelerometerUpdateTime!);
+              if (interval > _ignoreDuration) {
+                _accelerometerLastInterval = interval.inMilliseconds;
+              }
+            }
+          });
+          _accelerometerUpdateTime = now;
+        },
+        onError: (e) {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return const AlertDialog(
+                title: Text("Sensor Not Found"),
+                content: Text(
+                  "It seems that your device doesn't support Accelerometer Sensor",
+                ),
+              );
+            },
+          );
+        },
+        cancelOnError: true,
+      ),
+    );
+    _streamSubscriptions.add(
+      gyroscopeEventStream(samplingPeriod: sensorInterval).listen(
+        (GyroscopeEvent event) {
+          final now = event.timestamp;
+          setState(() {
+            _gyroscopeEvent = event;
+            if (_gyroscopeUpdateTime != null) {
+              final interval = now.difference(_gyroscopeUpdateTime!);
+              if (interval > _ignoreDuration) {
+                _gyroscopeLastInterval = interval.inMilliseconds;
+              }
+            }
+          });
+          _gyroscopeUpdateTime = now;
+        },
+        onError: (e) {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return const AlertDialog(
+                title: Text("Sensor Not Found"),
+                content: Text(
+                  "It seems that your device doesn't support Gyroscope Sensor",
+                ),
+              );
+            },
+          );
+        },
+        cancelOnError: true,
+      ),
+    );
     _accelerometerSubscription = accelerometerEvents.listen((
       AccelerometerEvent event,
     ) {
@@ -491,6 +562,8 @@ class HomeViewState extends State<HomeView>
                   inferenceTimeStream: objectDetector.inferenceTime,
                   fpsRateStream: objectDetector.fpsRate,
                   roughnessStream: _roughnessStream.stream,
+                  accelerometerEvent: _accelerometerEvent,
+                  gyroscopeEvent: _gyroscopeEvent,
                 ),
               ],
             ),

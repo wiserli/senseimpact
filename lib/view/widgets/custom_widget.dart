@@ -4,12 +4,18 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 class DataBrick extends StatelessWidget {
   final Widget icon;
   final String text;
-  const DataBrick({super.key, required this.icon, required this.text});
+  final int minWidth;
+  const DataBrick({
+    super.key,
+    required this.icon,
+    required this.text,
+    this.minWidth = 118,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(minWidth: 118.w),
+      constraints: BoxConstraints(minWidth: minWidth.w),
       height: 38.h,
       decoration: BoxDecoration(
         color: Color(0xFF16A34A),
