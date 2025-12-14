@@ -189,6 +189,24 @@ class BuildMethods {
                           children: [
                             SizedBox(height: 6.h),
                             DataBrick(
+                              text: "Lat: ${snapshot.data!.position.latitude}",
+                              icon: Icon(
+                                Icons.location_on,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            SizedBox(height: 6.h),
+                            DataBrick(
+                              text: "Lon: ${snapshot.data!.position.longitude}",
+                              icon: Icon(
+                                Icons.location_on,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            SizedBox(height: 6.h),
+                            DataBrick(
                               text:
                                   "${(snapshot.data!.distance / 1000).toStringAsFixed(2)} Km",
                               icon: Icon(

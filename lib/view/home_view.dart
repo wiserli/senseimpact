@@ -110,6 +110,7 @@ class HomeViewState extends State<HomeView>
   DateTime? _gyroscopeUpdateTime;
   int? _accelerometerLastInterval;
   int? _gyroscopeLastInterval;
+  final Set<int> _detectedPersonIds = {};
 
   @override
   void initState() {
@@ -286,6 +287,7 @@ class HomeViewState extends State<HomeView>
     _controller.dispose();
     positionStream?.cancel();
     _roughnessStream.close();
+    _detectedPersonIds.clear();
     super.dispose();
   }
 
@@ -655,6 +657,11 @@ class HomeViewState extends State<HomeView>
             builder: (context, snapshot) {
               if (snapshot.data == null) return Container();
               var streamResult = snapshot.data!;
+              checkForPersonDetection(
+                streamResult.detectionResult,
+                _locationStream,
+                _detectedPersonIds,
+              );
               final labelCount = <String, int>{};
               for (final item in streamResult.detectionResult!) {
                 if (item != null) {

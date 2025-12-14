@@ -148,6 +148,7 @@ const Map<String, String> cocoTestImages = {
       "/storage/v1/object/public/app_assets/benchmark/coco16/img11.jpg",
 };
 
+
 /// [Chosen Model]
 // String chosenModelName = "";
 // String chosenTfliteModelFileName = "";
