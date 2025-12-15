@@ -35,6 +35,7 @@ import 'dart:math' as math;
 import '../utils/colors.dart';
 import '../utils/custom_functions.dart';
 import '../utils/line_drawer.dart';
+import '../utils/road_sensor_service.dart';
 import 'custom_slider.dart';
 
 class HomeView extends StatefulWidget {
@@ -46,6 +47,7 @@ class HomeView extends StatefulWidget {
 
 class HomeViewState extends State<HomeView>
     with SingleTickerProviderStateMixin {
+  final RoadSensorService _roadSensorService = RoadSensorService();
   late AnimationController _animationController;
   bool _isClockwise = false; // Track whether image is in landscape
   Map<String, dynamic>? _pendingUpdateInfo;
@@ -288,6 +290,7 @@ class HomeViewState extends State<HomeView>
     positionStream?.cancel();
     _roughnessStream.close();
     _detectedPersonIds.clear();
+    _roadSensorService.dispose();
     super.dispose();
   }
 
@@ -301,6 +304,10 @@ class HomeViewState extends State<HomeView>
 
     // THIRD: Start location tracking (if needed)
     _locationStream = LocationService.startTracking().asBroadcastStream();
+
+    // FOURTH: Start road sensor service and Start collecting road sensor data
+    await _roadSensorService.init();
+    await _roadSensorService.start(_locationStream);
   }
 
   String getRoadStatus(double rms) {
