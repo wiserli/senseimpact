@@ -300,7 +300,7 @@ class HomeViewState extends State<HomeView>
     await checkPermissionsAndLoadModel();
 
     // THIRD: Start location tracking (if needed)
-    _locationStream = LocationService.startTracking();
+    _locationStream = LocationService.startTracking().asBroadcastStream();
   }
 
   String getRoadStatus(double rms) {

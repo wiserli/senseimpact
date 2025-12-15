@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pothole_detection_app/configs/pothole_data_model.dart';
-import 'package:pothole_detection_app/db/potholes.dart';
+import 'package:pothole_detection_app/db/pothole_data_model.dart';
+import 'package:pothole_detection_app/model/potholes.dart';
 import 'package:pothole_detection_app/utils/indicators.dart';
 import 'package:pothole_detection_app/utils/location.dart';
 import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/detected_object.dart';
@@ -71,7 +71,7 @@ Future<String> readFile(String filePath) async {
 }
 
 Future<void> onPotholeDetected(
-  // LocationUpdate location,
+  LocationUpdate location,
   int severity,
   String imagePath,
 ) async {
@@ -81,9 +81,9 @@ Future<void> onPotholeDetected(
     return; // debounce
   }
   final event = PotholeEvent(
-    latitude: 52.2206,
-    longitude: 21.0122,
-    speedKmh: 0,
+    latitude: location.position.latitude,
+    longitude: location.position.longitude,
+    speedKmh: location.speedKmh,
     severity: severity,
     imagePath: imagePath,
     timestamp: now,
@@ -106,15 +106,13 @@ void checkForPersonDetection(
   }
 
   // Get current location
-  // LocationUpdate? currentLocation;
-  // try {
-  //   currentLocation = await locationStream.first.timeout(
-  //     const Duration(seconds: 1),
-  //   );
-  // } catch (e) {
-  //   debugPrint('Could not get location: $e');
-  //   return;
-  // }
+  LocationUpdate? currentLocation;
+  try {
+    currentLocation = await locationStream.first;
+  } catch (e) {
+    debugPrint('Could not get location: $e');
+    return;
+  }
 
   // Check each detection
   for (final detection in detections) {
@@ -139,7 +137,7 @@ void checkForPersonDetection(
         final severity = (detection.confidence * 10).round();
 
         // Save to database
-        await onPotholeDetected(severity, imagePath);
+        await onPotholeDetected(currentLocation, severity, imagePath);
 
         // Remove from tracked after 10 seconds to allow re-detection
         Future.delayed(const Duration(seconds: 10), () {

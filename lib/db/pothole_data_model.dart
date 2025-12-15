@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart';
-import 'package:pothole_detection_app/db/potholes.dart';
+import 'package:pothole_detection_app/model/potholes.dart';
 import 'package:sqflite/sqflite.dart';
 
 class PotholeDatabase {
