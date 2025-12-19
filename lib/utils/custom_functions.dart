@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart';
@@ -9,11 +12,13 @@ import 'package:pothole_detection_app/db/pothole_data_model.dart';
 import 'package:pothole_detection_app/model/potholes.dart';
 import 'package:pothole_detection_app/utils/indicators.dart';
 import 'package:pothole_detection_app/utils/location.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:visionx/camera_preview/camera_preview.dart';
 import 'package:visionx/visionx_prediction_dir/visionx_detection_dir/detected_object.dart';
 import "package:yaml/yaml.dart";
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:image/image.dart' as img;
 import '../res/constants.dart';
 
 Future<String> copy({required String assetPath, String? folderName}) async {
@@ -94,10 +99,185 @@ Future<void> onPotholeDetected(
   CustomSnackBar().SnackBarMessage("Pothole detected and saved!");
 }
 
+Future<File> base64ToImageFile(
+  String base64String, {
+  String fileName = 'captured_image.jpg',
+}) async {
+  // Decode base64
+  Uint8List bytes = base64Decode(base64String);
+
+  // Get app directory
+  final Directory dir = await getTemporaryDirectory();
+  final String filePath = '${dir.path}/$fileName';
+
+  // Write file
+  final File file = File(filePath);
+  await file.writeAsBytes(bytes, flush: true);
+
+  return file;
+}
+
+/// Crop [cameraFrameFile] to match the size of [screenshotFile]
+Future<File> cropCameraFrameToMatchScreenshot({
+  required File cameraFrameFile,
+  required File screenshotFile,
+  required String outputPath,
+}) async {
+  // Read bytes
+  Uint8List cameraBytes = await cameraFrameFile.readAsBytes();
+  Uint8List screenshotBytes = await screenshotFile.readAsBytes();
+
+  // Decode images
+  img.Image? cameraImg = img.decodeImage(cameraBytes);
+  img.Image? screenshotImg = img.decodeImage(screenshotBytes);
+
+  if (cameraImg == null || screenshotImg == null) {
+    throw Exception('Failed to decode images');
+  }
+
+  // Get target size from screenshot
+  int targetWidth = screenshotImg.width;
+  int targetHeight = screenshotImg.height;
+
+  // Crop camera frame (center crop if needed)
+  int offsetX = (cameraImg.width - targetWidth) ~/ 2;
+  int offsetY = (cameraImg.height - targetHeight) ~/ 2;
+
+  // Ensure offsets are >= 0
+  offsetX = offsetX < 0 ? 0 : offsetX;
+  offsetY = offsetY < 0 ? 0 : offsetY;
+
+  img.Image croppedCamera = img.copyCrop(
+    cameraImg,
+    x: offsetX,
+    y: offsetY,
+    width: targetWidth > cameraImg.width ? cameraImg.width : targetWidth,
+    height: targetHeight > cameraImg.height ? cameraImg.height : targetHeight,
+  );
+
+  // Encode to JPEG and save
+  Uint8List croppedBytes = Uint8List.fromList(
+    img.encodeJpg(croppedCamera, quality: 90),
+  );
+  File outputFile = File(outputPath);
+  await outputFile.writeAsBytes(croppedBytes, flush: true);
+
+  return outputFile;
+}
+
+/// This function stacks croppedCameraFrame on screenshotFile
+Future<File> stackScreenshotOnCroppedFrameAndRotateImage({
+  required File croppedCameraFrame,
+  required File screenshotFile,
+  required String outputPath,
+}) async {
+  // Load images using the 'image' package
+  final img.Image croppedImg =
+      img.decodeImage(await croppedCameraFrame.readAsBytes())!;
+
+  final img.Image screenshotImg =
+      img.decodeImage(await screenshotFile.readAsBytes())!;
+
+  // Create a copy of cropped frame as base
+  final img.Image mergedImg = img.copyResize(
+    croppedImg,
+    width: croppedImg.width,
+    height: croppedImg.height,
+  );
+
+  // Calculate position to overlay screenshot (top-left by default)
+  // Adjust these values based on your needs (e.g., center, specific offset)
+  final int dstX = 10;
+  final int dstY = 10;
+
+  // Composite screenshot onto cropped frame
+  img.compositeImage(
+    mergedImg,
+    screenshotImg,
+    dstX: dstX,
+    dstY: dstY,
+    blend: img.BlendMode.alpha, // Enable alpha blending for transparency
+  );
+
+  // Rotate the merged image by -π/2 (90 degrees counterclockwise)
+  final img.Image rotatedImg = img.copyRotate(mergedImg, angle: -90);
+
+  // Encode and save merged image
+  final mergedBytes = img.encodeJpg(rotatedImg, quality: 95);
+  final mergedFile = File(outputPath);
+  await mergedFile.writeAsBytes(mergedBytes);
+
+  return mergedFile;
+}
+
+// TOP-LEVEL ISOLATE FUNCTION
+Future<Map<String, dynamic>> _personDetectionIsolateProcessor(
+  Map<String, dynamic> params,
+) async {
+  final List<DetectedObject?> detections = params['detections'];
+  final LocationUpdate? currentLocation = params['location'];
+  final int detectionId = params['detectionId'];
+  final int timestamp = params['timestamp'];
+  final String tempDirPath = params['tempDirPath'];
+  final String docDirPath = params['docDirPath'];
+  final String screenshotPath = params['screenshotPath'];
+  final String cameraBase64 = params['cameraBase64'];
+
+  try {
+    // All heavy processing in isolate
+    final tempDir = Directory(tempDirPath);
+    final cameraFrameFileName = 'pothole_cameraFrame_$timestamp.jpg';
+
+    // Convert base64 to file in isolate
+    final Uint8List bytes = base64Decode(cameraBase64);
+    final cameraFrameFile = File('$tempDirPath/$cameraFrameFileName');
+    await cameraFrameFile.writeAsBytes(bytes, flush: true);
+
+    final screenshotFile = File(screenshotPath);
+    final croppedCameraFrame = await cropCameraFrameToMatchScreenshot(
+      cameraFrameFile: cameraFrameFile,
+      screenshotFile: screenshotFile,
+      outputPath: '$tempDirPath/cropped_$cameraFrameFileName',
+    );
+
+    final mergedTempFile = await stackScreenshotOnCroppedFrameAndRotateImage(
+      croppedCameraFrame: croppedCameraFrame,
+      screenshotFile: screenshotFile,
+      outputPath: '$tempDirPath/merged_$timestamp.jpg',
+    );
+
+    // Move to documents directory
+    final docDir = Directory(docDirPath);
+    final mergedFileName = 'pothole_${timestamp}.jpg';
+    final finalMergedFile = await mergedTempFile.copy(
+      '${docDir.path}/$mergedFileName',
+    );
+
+    // Cleanup temp files
+    await Future.wait([
+      if (cameraFrameFile.existsSync()) cameraFrameFile.delete(),
+      if (croppedCameraFrame.existsSync()) croppedCameraFrame.delete(),
+      if (mergedTempFile.existsSync()) mergedTempFile.delete(),
+    ]);
+
+    // RETURN result for main thread
+    return {
+      'success': true,
+      'path': finalMergedFile.path,
+      'severity': (detections.first!.confidence * 10).round(),
+    };
+  } catch (e) {
+    return {'success': false, 'error': e.toString()};
+  }
+}
+
+// Main Function for checking the person label in detection
 void checkForPersonDetection(
   List<DetectedObject?>? detections,
   Stream<LocationUpdate> locationStream,
   Set<int> detectedPersonIds,
+  ScreenshotController screenshotController,
+  VisionxYoloCameraController cameraController,
 ) async {
   if (detections == null || detections.isEmpty) {
     // Clear tracked IDs when no detections
@@ -129,17 +309,52 @@ void checkForPersonDetection(
       if (!detectedPersonIds.contains(detectionId)) {
         detectedPersonIds.add(detectionId);
 
-        // Capture screenshot
-        final imagePath =
-            'test_pothole_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final tempDir = await getTemporaryDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final screenshotFileName = 'pothole_screenshot_$timestamp.jpg';
 
-        // Calculate severity based on confidence (example)
-        final severity = (detection.confidence * 10).round();
+        // QUICK MAIN THREAD WORK ONLY (~100ms)
+        final screenshotImagePath =
+            await screenshotController.captureAndSave(
+              tempDir.path,
+              fileName: screenshotFileName,
+            ) ??
+            '${tempDir.path}/$screenshotFileName';
 
-        // Save to database
-        await onPotholeDetected(currentLocation, severity, imagePath);
+        final cameraFrameBase64 = await cameraController.takePicture();
+        if (cameraFrameBase64 == null) continue;
 
-        // Remove from tracked after 10 seconds to allow re-detection
+        // OFFLOAD HEAVY WORK TO ISOLATE (~1-2s, non-blocking)
+        final params = {
+          'detections': [detection],
+          'location': currentLocation,
+          'detectionId': detectionId,
+          'timestamp': timestamp,
+          'tempDirPath': tempDir.path,
+          'docDirPath': (await getApplicationDocumentsDirectory()).path,
+          'screenshotPath': screenshotImagePath,
+          'cameraBase64': cameraFrameBase64,
+        };
+
+        // Get result from isolate
+        final result = await compute(_personDetectionIsolateProcessor, params);
+
+        // Call onPotholeDetected WITHOUT await (it's void)
+        if (result['success'] == true) {
+          onPotholeDetected(
+            currentLocation,
+            result['severity'] as int,
+            result['path'] as String,
+          );
+        } else {
+          debugPrint('Isolate error: ${result['error']}');
+        }
+
+        // Cleanup screenshot
+        final screenshotFile = File(screenshotImagePath);
+        if (screenshotFile.existsSync()) screenshotFile.deleteSync();
+
+        // Allow re-detection after 10 seconds
         Future.delayed(const Duration(seconds: 10), () {
           detectedPersonIds.remove(detectionId);
         });

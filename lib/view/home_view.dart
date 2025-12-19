@@ -16,6 +16,7 @@ import 'package:pothole_detection_app/utils/location.dart';
 import 'package:pothole_detection_app/utils/permission_controller.dart';
 import 'package:pothole_detection_app/view/build_methods.dart';
 import 'package:pothole_detection_app/view/permission_screen.dart';
+import 'package:screenshot/screenshot.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_controller.dart';
 import 'package:visionx/camera_preview/visionx_yolo_camera_preview.dart';
@@ -113,6 +114,8 @@ class HomeViewState extends State<HomeView>
   int? _accelerometerLastInterval;
   int? _gyroscopeLastInterval;
   final Set<int> _detectedPersonIds = {};
+  //Create an instance of ScreenshotController
+  ScreenshotController screenshotController = ScreenshotController();
 
   @override
   void initState() {
@@ -566,6 +569,7 @@ class HomeViewState extends State<HomeView>
                   },
                 ),
                 homeBuildMethods.buildMetricsCard(
+                  context: context,
                   orientation: orientation,
                   locationStream: _locationStream,
                   inferenceTimeStream: objectDetector.inferenceTime,
@@ -587,186 +591,141 @@ class HomeViewState extends State<HomeView>
     const double minZoomLevel = 1.0;
     const double maxZoomLevel = 5.0;
     //print("From camera preview:${_controller.value.lensDirection}");
-    return Stack(
-      children: [
-        if (!(Platform.isIOS && kDebugMode))
-          RepaintBoundary(
-            child: VisionxYoloCameraPreview(
-              orientation: orientation,
-              predictor: objectDetector,
-              controller: _controller,
-              onCameraCreated: () {},
-              boundingBoxesColorList: bBoxColorList,
-              bottom:
-                  (orientation == 'portraitUp' || orientation == 'portraitDown')
-                      ? kBottomNavigationBarHeight + 130.h
-                      : null,
-              top:
-                  (orientation == 'landscapeRight')
-                      ? 220.h
-                      : (orientation == 'landscapeLeft')
-                      ? 20.h
-                      : null,
-              left:
-                  (orientation == 'landscapeRight')
-                      ? -10.w
-                      : (orientation == 'landscapeLeft')
-                      ? 220.w
-                      : 20.w,
-              right: (orientation == 'landscapeLeft') ? 0.w : null,
-              icon:
-                  objectCountVisible
-                      ? Icons.arrow_drop_down
-                      : Icons.arrow_drop_up,
-              iconSize: 28,
-              iconColor: Colors.white,
-              textStyle: const TextStyle(color: Colors.white),
-              isListVisible: objectCountVisible,
-              isConfidenceValueVisible: true,
-              showDetectionFromPlugin: false,
+    return Screenshot(
+      controller: screenshotController,
+      child: Stack(
+        children: [
+          if (!(Platform.isIOS && kDebugMode))
+            RepaintBoundary(
+              child: VisionxYoloCameraPreview(
+                orientation: orientation,
+                predictor: objectDetector,
+                controller: _controller,
+                onCameraCreated: () {},
+                boundingBoxesColorList: bBoxColorList,
+                bottom:
+                    (orientation == 'portraitUp' ||
+                            orientation == 'portraitDown')
+                        ? kBottomNavigationBarHeight + 130.h
+                        : null,
+                top:
+                    (orientation == 'landscapeRight')
+                        ? 220.h
+                        : (orientation == 'landscapeLeft')
+                        ? 20.h
+                        : null,
+                left:
+                    (orientation == 'landscapeRight')
+                        ? -10.w
+                        : (orientation == 'landscapeLeft')
+                        ? 220.w
+                        : 20.w,
+                right: (orientation == 'landscapeLeft') ? 0.w : null,
+                icon:
+                    objectCountVisible
+                        ? Icons.arrow_drop_down
+                        : Icons.arrow_drop_up,
+                iconSize: 28,
+                iconColor: Colors.white,
+                textStyle: const TextStyle(color: Colors.white),
+                isListVisible: objectCountVisible,
+                isConfidenceValueVisible: true,
+                showDetectionFromPlugin: false,
+              ),
+            ),
+          Center(
+            child: Visibility(
+              maintainState: true,
+              maintainAnimation: true,
+              child: AnimatedRotation(
+                duration: const Duration(seconds: 1),
+                // Adjust duration for smoothness
+                curve: Curves.easeInOut,
+                // Add easing for smooth transition
+                turns: rotationAngle / (2 * 3.141592653589793),
+                // Convert radians to turns
+                child:
+                    animationVisible
+                        ? Image.asset(
+                          _isClockwise
+                              ? 'assets/icons/yolovx_logo_sqr_right.png' // Switch to landscape image
+                              : 'assets/icons/yolovx_logo_sqr_left.png',
+                          // Default portrait image
+                          width: 150,
+                          height: 150,
+                          semanticLabel:
+                              _isClockwise
+                                  ? 'Landscape Right' // Switch to landscape image
+                                  : 'Portrait',
+                        )
+                        : const SizedBox.shrink(),
+                onEnd: () {
+                  rotationAngle = 0;
+                },
+              ),
             ),
           ),
-        Center(
-          child: Visibility(
-            maintainState: true,
-            maintainAnimation: true,
-            child: AnimatedRotation(
-              duration: const Duration(seconds: 1),
-              // Adjust duration for smoothness
-              curve: Curves.easeInOut,
-              // Add easing for smooth transition
-              turns: rotationAngle / (2 * 3.141592653589793),
-              // Convert radians to turns
-              child:
-                  animationVisible
-                      ? Image.asset(
-                        _isClockwise
-                            ? 'assets/icons/yolovx_logo_sqr_right.png' // Switch to landscape image
-                            : 'assets/icons/yolovx_logo_sqr_left.png',
-                        // Default portrait image
-                        width: 150,
-                        height: 150,
-                        semanticLabel:
-                            _isClockwise
-                                ? 'Landscape Right' // Switch to landscape image
-                                : 'Portrait',
-                      )
-                      : const SizedBox.shrink(),
-              onEnd: () {
-                rotationAngle = 0;
-              },
-            ),
-          ),
-        ),
-        if (prefs.chosenModelMode == "Detection")
-          StreamBuilder<DetectionStreamResults>(
-            stream: detectionStreamResultsController.stream,
-            builder: (context, snapshot) {
-              if (snapshot.data == null) return Container();
-              var streamResult = snapshot.data!;
-              checkForPersonDetection(
-                streamResult.detectionResult,
-                _locationStream,
-                _detectedPersonIds,
-              );
-              final labelCount = <String, int>{};
-              for (final item in streamResult.detectionResult!) {
-                if (item != null) {
-                  labelCount[item.label] = (labelCount[item.label] ?? 0) + 1;
+          if (prefs.chosenModelMode == "Detection")
+            StreamBuilder<DetectionStreamResults>(
+              stream: detectionStreamResultsController.stream,
+              builder: (context, snapshot) {
+                if (snapshot.data == null) return Container();
+                var streamResult = snapshot.data!;
+                checkForPersonDetection(
+                  streamResult.detectionResult,
+                  _locationStream,
+                  _detectedPersonIds,
+                  screenshotController,
+                  _controller,
+                );
+                final labelCount = <String, int>{};
+                for (final item in streamResult.detectionResult!) {
+                  if (item != null) {
+                    labelCount[item.label] = (labelCount[item.label] ?? 0) + 1;
+                  }
                 }
-              }
-              // Get the top 5 labels sorted by their occurrence
-              topLabels =
-                  labelCount.entries.toList()..sort(
-                    (a, b) => b.value.compareTo(a.value),
-                  ); // Sort by occurrence count
-              Map<String, int> map = Map.fromEntries(topLabels);
-              // Transform the map to the desired format
-              List<Map<String, dynamic>> transformedList =
-                  map.entries.map((entry) {
-                    return {"label": entry.key, "count": entry.value};
-                  }).toList();
-              // Encode the Map to a JSON string
-              String jsonString = jsonEncode(transformedList);
-              print(topLabels);
-              return CustomPaint(
-                painter: ObjectDetectorPainter(
-                  orientation,
-                  snapshot.data!.detectionResult as List<DetectedObject>,
-                  labelColorsList: bBoxColorList,
-                  strokeWidth: 2.5,
-                  isConfidenceValueVisible: prefs.showConfidence,
-                  trackingEnabled: _controller.value.trackingEnabled,
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      bottom:
-                          (orientation == 'portraitUp' ||
-                                  orientation == 'portraitDown')
-                              ? kBottomNavigationBarHeight + 130.h
-                              : (orientation == 'landscapeLeft')
-                              ? 500.h
-                              : null,
-                      top: (orientation == 'landscapeRight') ? 210.h : null,
-                      left:
-                          (orientation == 'landscapeRight')
-                              ? -5.w
-                              : (orientation == 'portraitUp' ||
-                                  orientation == 'portraitDown')
-                              ? 20.w
-                              : null,
-                      right: (orientation == 'landscapeLeft') ? -5.w : null,
-                      child: Transform.rotate(
-                        angle:
-                            orientation == 'portraitUp'
-                                ? 0
-                                : orientation == 'landscapeRight'
-                                ? pi / 2
-                                : orientation == 'portraitDown'
-                                ? 0
-                                : -pi / 2,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  objectCountVisible
-                                      ? Icons.arrow_drop_down
-                                      : Icons.arrow_drop_up,
-                                  size: 28,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Total Count : ${snapshot.data!.detectionResult!.length}',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (objectCountVisible ?? false)
+                // Get the top 5 labels sorted by their occurrence
+                topLabels =
+                    labelCount.entries.toList()..sort(
+                      (a, b) => b.value.compareTo(a.value),
+                    ); // Sort by occurrence count
+                Map<String, int> map = Map.fromEntries(topLabels);
+                // Transform the map to the desired format
+                List<Map<String, dynamic>> transformedList =
+                    map.entries.map((entry) {
+                      return {"label": entry.key, "count": entry.value};
+                    }).toList();
+                // Encode the Map to a JSON string
+                String jsonString = jsonEncode(transformedList);
+                print(topLabels);
+                return CustomPaint(
+                  painter: ObjectDetectorPainter(
+                    orientation,
+                    snapshot.data!.detectionResult as List<DetectedObject>,
+                    labelColorsList: bBoxColorList,
+                    strokeWidth: 2.5,
+                    isConfidenceValueVisible: prefs.showConfidence,
+                    trackingEnabled: _controller.value.trackingEnabled,
+                  ),
+                  child: Stack(
+                    children: [
                       Positioned(
                         bottom:
                             (orientation == 'portraitUp' ||
                                     orientation == 'portraitDown')
-                                ? kBottomNavigationBarHeight + 160.h
+                                ? kBottomNavigationBarHeight + 130.h
                                 : (orientation == 'landscapeLeft')
-                                ? 480.h
+                                ? 500.h
                                 : null,
-                        top: (orientation == 'landscapeRight') ? 190.h : null,
+                        top: (orientation == 'landscapeRight') ? 210.h : null,
                         left:
                             (orientation == 'landscapeRight')
-                                ? 74.w
+                                ? -5.w
                                 : (orientation == 'portraitUp' ||
                                     orientation == 'portraitDown')
-                                ? 44.w
+                                ? 20.w
                                 : null,
-                        right: (orientation == 'landscapeLeft') ? 70.w : null,
+                        right: (orientation == 'landscapeLeft') ? -5.w : null,
                         child: Transform.rotate(
                           angle:
                               orientation == 'portraitUp'
@@ -776,112 +735,47 @@ class HomeViewState extends State<HomeView>
                                   : orientation == 'portraitDown'
                                   ? 0
                                   : -pi / 2,
-                          child: SizedBox(
-                            width: 200,
-                            height: 200, // Adjust height as needed
-                            child: ListView.builder(
-                              reverse: true,
-                              itemCount: topLabels.length,
-                              itemBuilder: (context, index) {
-                                final label = topLabels[index].key;
-                                final count = topLabels[index].value;
-                                return Row(
-                                  children: [
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '$label : $count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    objectCountVisible
+                                        ? Icons.arrow_drop_down
+                                        : Icons.arrow_drop_up,
+                                    size: 28,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Total Count : ${snapshot.data!.detectionResult!.length}',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                  ],
-                ),
-              );
-            },
-          ),
-        if (prefs.chosenModelMode == "Segmentation")
-          StreamBuilder<SegmentationStreamResults>(
-            stream: segmentationStreamResultsController.stream,
-            builder: (context, snapshot) {
-              if (snapshot.data == null) return Container();
-              var streamResult = snapshot.data!;
-              final labelCount = <String, int>{};
-              for (final item in streamResult.detectionResult!) {
-                if (item != null) {
-                  labelCount[item.label] = (labelCount[item.label] ?? 0) + 1;
-                }
-              }
-              // Get the top 5 labels sorted by their occurrence
-              topLabels =
-                  labelCount.entries.toList()..sort(
-                    (a, b) => b.value.compareTo(a.value),
-                  ); // Sort by occurrence count
-              // Convert the list of MapEntry to a Map
-              Map<String, int> map = Map.fromEntries(topLabels);
-              // Transform the map to the desired format
-              List<Map<String, dynamic>> transformedList =
-                  map.entries.map((entry) {
-                    return {"label": entry.key, "count": entry.value};
-                  }).toList();
-              // Encode the Map to a JSON string
-              String jsonString = jsonEncode(transformedList);
-              print(topLabels);
-              return Stack(
-                children: [
-                  ...streamResult.detectionResult!.asMap().entries.map(
-                    (entry) =>
-                        entry.value != null
-                            ? Image.memory(
-                              entry.value!.mask!,
-                              fit: BoxFit.cover,
-                              repeat: ImageRepeat.repeat,
-                              color:
-                                  Platform.isAndroid
-                                      ? bBoxColorList[entry.value!.index %
-                                              bBoxColorList.length]
-                                          .withOpacity(0.5)
-                                      : null,
-                              key: ValueKey(entry.key),
-                              height: double.infinity,
-                              width: double.infinity,
-                            )
-                            : Container(),
-                  ),
-                  CustomPaint(
-                    painter: ObjectSegmentorPainter(
-                      orientation,
-                      streamResult.detectionResult as List<SegmentedObject>,
-                      labelColorsList: bBoxColorList,
-                      isConfidenceValueVisible: prefs.showConfidence,
-                      strokeWidth: 2.5,
-                      trackingEnabled: _controller.value.trackingEnabled,
-                    ),
-                    child: Stack(
-                      children: [
+                      if (objectCountVisible ?? false)
                         Positioned(
                           bottom:
                               (orientation == 'portraitUp' ||
                                       orientation == 'portraitDown')
-                                  ? kBottomNavigationBarHeight + 130.h
+                                  ? kBottomNavigationBarHeight + 160.h
                                   : (orientation == 'landscapeLeft')
-                                  ? 500.h
+                                  ? 480.h
                                   : null,
-                          top: (orientation == 'landscapeRight') ? 210.h : null,
+                          top: (orientation == 'landscapeRight') ? 190.h : null,
                           left:
                               (orientation == 'landscapeRight')
-                                  ? -5.w
+                                  ? 74.w
                                   : (orientation == 'portraitUp' ||
                                       orientation == 'portraitDown')
-                                  ? 20.w
+                                  ? 44.w
                                   : null,
-                          right: (orientation == 'landscapeLeft') ? -5.w : null,
+                          right: (orientation == 'landscapeLeft') ? 70.w : null,
                           child: Transform.rotate(
                             angle:
                                 orientation == 'portraitUp'
@@ -891,52 +785,116 @@ class HomeViewState extends State<HomeView>
                                     : orientation == 'portraitDown'
                                     ? 0
                                     : -pi / 2,
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      objectCountVisible
-                                          ? Icons.arrow_drop_down
-                                          : Icons.arrow_drop_up,
-                                      size: 28,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Total Count : ${snapshot.data!.detectionResult!.length}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                            child: SizedBox(
+                              width: 200,
+                              height: 200, // Adjust height as needed
+                              child: ListView.builder(
+                                reverse: true,
+                                itemCount: topLabels.length,
+                                itemBuilder: (context, index) {
+                                  final label = topLabels[index].key;
+                                  final count = topLabels[index].value;
+                                  return Row(
+                                    children: [
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '$label : $count',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
-                        if (objectCountVisible ?? false)
+                    ],
+                  ),
+                );
+              },
+            ),
+          if (prefs.chosenModelMode == "Segmentation")
+            StreamBuilder<SegmentationStreamResults>(
+              stream: segmentationStreamResultsController.stream,
+              builder: (context, snapshot) {
+                if (snapshot.data == null) return Container();
+                var streamResult = snapshot.data!;
+                final labelCount = <String, int>{};
+                for (final item in streamResult.detectionResult!) {
+                  if (item != null) {
+                    labelCount[item.label] = (labelCount[item.label] ?? 0) + 1;
+                  }
+                }
+                // Get the top 5 labels sorted by their occurrence
+                topLabels =
+                    labelCount.entries.toList()..sort(
+                      (a, b) => b.value.compareTo(a.value),
+                    ); // Sort by occurrence count
+                // Convert the list of MapEntry to a Map
+                Map<String, int> map = Map.fromEntries(topLabels);
+                // Transform the map to the desired format
+                List<Map<String, dynamic>> transformedList =
+                    map.entries.map((entry) {
+                      return {"label": entry.key, "count": entry.value};
+                    }).toList();
+                // Encode the Map to a JSON string
+                String jsonString = jsonEncode(transformedList);
+                print(topLabels);
+                return Stack(
+                  children: [
+                    ...streamResult.detectionResult!.asMap().entries.map(
+                      (entry) =>
+                          entry.value != null
+                              ? Image.memory(
+                                entry.value!.mask!,
+                                fit: BoxFit.cover,
+                                repeat: ImageRepeat.repeat,
+                                color:
+                                    Platform.isAndroid
+                                        ? bBoxColorList[entry.value!.index %
+                                                bBoxColorList.length]
+                                            .withOpacity(0.5)
+                                        : null,
+                                key: ValueKey(entry.key),
+                                height: double.infinity,
+                                width: double.infinity,
+                              )
+                              : Container(),
+                    ),
+                    CustomPaint(
+                      painter: ObjectSegmentorPainter(
+                        orientation,
+                        streamResult.detectionResult as List<SegmentedObject>,
+                        labelColorsList: bBoxColorList,
+                        isConfidenceValueVisible: prefs.showConfidence,
+                        strokeWidth: 2.5,
+                        trackingEnabled: _controller.value.trackingEnabled,
+                      ),
+                      child: Stack(
+                        children: [
                           Positioned(
                             bottom:
                                 (orientation == 'portraitUp' ||
                                         orientation == 'portraitDown')
-                                    ? kBottomNavigationBarHeight + 160.h
+                                    ? kBottomNavigationBarHeight + 130.h
                                     : (orientation == 'landscapeLeft')
-                                    ? 480.h
+                                    ? 500.h
                                     : null,
                             top:
                                 (orientation == 'landscapeRight')
-                                    ? 190.h
+                                    ? 210.h
                                     : null,
                             left:
                                 (orientation == 'landscapeRight')
-                                    ? 74.w
+                                    ? -5.w
                                     : (orientation == 'portraitUp' ||
                                         orientation == 'portraitDown')
-                                    ? 44.w
+                                    ? 20.w
                                     : null,
                             right:
-                                (orientation == 'landscapeLeft') ? 70.w : null,
+                                (orientation == 'landscapeLeft') ? -5.w : null,
                             child: Transform.rotate(
                               angle:
                                   orientation == 'portraitUp'
@@ -946,77 +904,135 @@ class HomeViewState extends State<HomeView>
                                       : orientation == 'portraitDown'
                                       ? 0
                                       : -pi / 2,
-                              child: SizedBox(
-                                width: 200,
-                                height: 200, // Adjust height as needed
-                                child: ListView.builder(
-                                  reverse: true,
-                                  itemCount: topLabels.length,
-                                  itemBuilder: (context, index) {
-                                    final label = topLabels[index].key;
-                                    final count = topLabels[index].value;
-                                    return Row(
-                                      children: [
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '$label : $count',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                          ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        objectCountVisible
+                                            ? Icons.arrow_drop_down
+                                            : Icons.arrow_drop_up,
+                                        size: 28,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Total Count : ${snapshot.data!.detectionResult!.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
                                         ),
-                                      ],
-                                    );
-                                  },
-                                ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                      ],
+                          if (objectCountVisible ?? false)
+                            Positioned(
+                              bottom:
+                                  (orientation == 'portraitUp' ||
+                                          orientation == 'portraitDown')
+                                      ? kBottomNavigationBarHeight + 160.h
+                                      : (orientation == 'landscapeLeft')
+                                      ? 480.h
+                                      : null,
+                              top:
+                                  (orientation == 'landscapeRight')
+                                      ? 190.h
+                                      : null,
+                              left:
+                                  (orientation == 'landscapeRight')
+                                      ? 74.w
+                                      : (orientation == 'portraitUp' ||
+                                          orientation == 'portraitDown')
+                                      ? 44.w
+                                      : null,
+                              right:
+                                  (orientation == 'landscapeLeft')
+                                      ? 70.w
+                                      : null,
+                              child: Transform.rotate(
+                                angle:
+                                    orientation == 'portraitUp'
+                                        ? 0
+                                        : orientation == 'landscapeRight'
+                                        ? pi / 2
+                                        : orientation == 'portraitDown'
+                                        ? 0
+                                        : -pi / 2,
+                                child: SizedBox(
+                                  width: 200,
+                                  height: 200, // Adjust height as needed
+                                  child: ListView.builder(
+                                    reverse: true,
+                                    itemCount: topLabels.length,
+                                    itemBuilder: (context, index) {
+                                      final label = topLabels[index].key;
+                                      final count = topLabels[index].value;
+                                      return Row(
+                                        children: [
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '$label : $count',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
-        GestureDetector(
-          onScaleUpdate: (details) {
-            if (details.pointerCount == 2) {
-              // Calculate the new zoom factor
-              var newZoomFactor = currentZoomFactor * details.scale;
+                  ],
+                );
+              },
+            ),
+          GestureDetector(
+            onScaleUpdate: (details) {
+              if (details.pointerCount == 2) {
+                // Calculate the new zoom factor
+                var newZoomFactor = currentZoomFactor * details.scale;
 
-              // Adjust the sensitivity for zoom out
-              if (newZoomFactor < currentZoomFactor) {
-                newZoomFactor =
-                    currentZoomFactor -
-                    (zoomSensitivity * (currentZoomFactor - newZoomFactor));
-              } else {
-                newZoomFactor =
-                    currentZoomFactor +
-                    (zoomSensitivity * (newZoomFactor - currentZoomFactor));
+                // Adjust the sensitivity for zoom out
+                if (newZoomFactor < currentZoomFactor) {
+                  newZoomFactor =
+                      currentZoomFactor -
+                      (zoomSensitivity * (currentZoomFactor - newZoomFactor));
+                } else {
+                  newZoomFactor =
+                      currentZoomFactor +
+                      (zoomSensitivity * (newZoomFactor - currentZoomFactor));
+                }
+
+                // Limit the zoom factor to a range between
+                // _minZoomLevel and _maxZoomLevel
+                final clampedZoomFactor = max(
+                  minZoomLevel,
+                  min(maxZoomLevel, newZoomFactor),
+                );
+
+                // Update the zoom factor
+                VisionxYoloPlatform.instance.setZoomRatio(clampedZoomFactor);
+
+                // Update the current zoom factor for the next update
+                currentZoomFactor = clampedZoomFactor;
               }
-
-              // Limit the zoom factor to a range between
-              // _minZoomLevel and _maxZoomLevel
-              final clampedZoomFactor = max(
-                minZoomLevel,
-                min(maxZoomLevel, newZoomFactor),
-              );
-
-              // Update the zoom factor
-              VisionxYoloPlatform.instance.setZoomRatio(clampedZoomFactor);
-
-              // Update the current zoom factor for the next update
-              currentZoomFactor = clampedZoomFactor;
-            }
-          },
-          child: Container(
-            height: double.infinity,
-            width: double.infinity,
-            color: Colors.transparent,
-            child: const Center(child: Text('')),
+            },
+            child: Container(
+              height: double.infinity,
+              width: double.infinity,
+              color: Colors.transparent,
+              child: const Center(child: Text('')),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

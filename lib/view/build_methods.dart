@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:path/path.dart';
 import 'package:pothole_detection_app/utils/location.dart';
 import 'package:pothole_detection_app/utils/time_and_fps.dart';
+import 'package:pothole_detection_app/view/report_preview_view.dart';
 import 'package:pothole_detection_app/view/widgets/custom_widget.dart';
 import 'package:pothole_detection_app/view/widgets/speedometer.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -122,6 +124,7 @@ class BuildMethods {
   }
 
   Widget buildMetricsCard({
+    required BuildContext context,
     required String orientation,
     required Stream<LocationUpdate> locationStream,
     required Stream<double>? inferenceTimeStream,
@@ -159,15 +162,26 @@ class BuildMethods {
               children: [
                 Column(
                   children: [
+                    SizedBox(height: 10.h),
                     SizedBox(
                       width: 118.w,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Image.asset(
-                            'assets/icons/stop_icon.png',
-                            height: 28.h,
-                            width: 28.w,
+                          IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ReportPreviewView(),
+                                ),
+                              );
+                            },
+                            icon: Image.asset(
+                              'assets/icons/stop_icon.png',
+                              height: 28.h,
+                              width: 28.w,
+                            ),
                           ),
                           Icon(
                             Icons.keyboard_arrow_right,

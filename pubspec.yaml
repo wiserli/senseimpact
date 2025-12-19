@@ -34,7 +34,7 @@ dependencies:
   visionx:
     git:
       url: https://github.com/wiserli/flutter_cv.git
-      ref: faa4cbcbfce0f68946e4895cc87cfb0793fdf552 #visionx_tracking
+      ref: f27b6dfff689f285f48da6caa8db5cd5a918a7cf #visionx_screenshot
   device_info_plus:
     git:
       url: https://github.com/wiserli/flutter_cv_app_dep.git
@@ -52,6 +52,14 @@ dependencies:
   # Location
   geolocator: ^14.0.2
   # Utilities
+  excel: ^4.0.3
+#  syncfusion_flutter_xlsio: ^32.1.19 Paid for Commercial use
+  pdf: ^3.8.4
+  csv: ^6.0.0
+  file_saver: ^0.3.1
+  share_plus: ^12.0.1
+  screenshot: ^3.0.0
+  image: ^4.3.0
   syncfusion_flutter_gauges: ^25.1.36
   flutter_screenutil: ^5.9.0
   google_fonts: ^6.1.0
