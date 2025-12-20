@@ -210,22 +210,80 @@ Future<File> stackScreenshotOnCroppedFrameAndRotateImage({
   return mergedFile;
 }
 
-// TOP-LEVEL ISOLATE FUNCTION
+// TOP-LEVEL ISOLATE FUNCTION FOR PERSON DETECTION PROCESSING converting to screenshot
+// Future<Map<String, dynamic>> _personDetectionIsolateProcessor(
+//   Map<String, dynamic> params,
+// )
+// async {
+//   final List<DetectedObject?> detections = params['detections'];
+//   final LocationUpdate? currentLocation = params['location'];
+//   final int detectionId = params['detectionId'];
+//   final int timestamp = params['timestamp'];
+//   final String tempDirPath = params['tempDirPath'];
+//   final String docDirPath = params['docDirPath'];
+//   final String screenshotPath = params['screenshotPath'];
+//   final String cameraBase64 = params['cameraBase64'];
+//
+//   try {
+//     // All heavy processing in isolate
+//     final tempDir = Directory(tempDirPath);
+//     final cameraFrameFileName = 'pothole_cameraFrame_$timestamp.jpg';
+//
+//     // Convert base64 to file in isolate
+//     final Uint8List bytes = base64Decode(cameraBase64);
+//     final cameraFrameFile = File('$tempDirPath/$cameraFrameFileName');
+//     await cameraFrameFile.writeAsBytes(bytes, flush: true);
+//
+//     final screenshotFile = File(screenshotPath);
+//     final croppedCameraFrame = await cropCameraFrameToMatchScreenshot(
+//       cameraFrameFile: cameraFrameFile,
+//       screenshotFile: screenshotFile,
+//       outputPath: '$tempDirPath/cropped_$cameraFrameFileName',
+//     );
+//
+//     final mergedTempFile = await stackScreenshotOnCroppedFrameAndRotateImage(
+//       croppedCameraFrame: croppedCameraFrame,
+//       screenshotFile: screenshotFile,
+//       outputPath: '$tempDirPath/merged_$timestamp.jpg',
+//     );
+//
+//     // Move to documents directory
+//     final docDir = Directory(docDirPath);
+//     final mergedFileName = 'pothole_${timestamp}.jpg';
+//     final finalMergedFile = await mergedTempFile.copy(
+//       '${docDir.path}/$mergedFileName',
+//     );
+//
+//     // Cleanup temp files
+//     await Future.wait([
+//       if (cameraFrameFile.existsSync()) cameraFrameFile.delete(),
+//       if (croppedCameraFrame.existsSync()) croppedCameraFrame.delete(),
+//       if (mergedTempFile.existsSync()) mergedTempFile.delete(),
+//     ]);
+//
+//     // RETURN result for main thread
+//     return {
+//       'success': true,
+//       'path': finalMergedFile.path,
+//       'severity': (detections.first!.confidence * 10).round(),
+//     };
+//   } catch (e) {
+//     return {'success': false, 'error': e.toString()};
+//   }
+// }
+
+// Top-LEVEL ISOLATE FUNCTION FOR PERSON DETECTION and storing raw pothole image
 Future<Map<String, dynamic>> _personDetectionIsolateProcessor(
   Map<String, dynamic> params,
 ) async {
   final List<DetectedObject?> detections = params['detections'];
-  final LocationUpdate? currentLocation = params['location'];
-  final int detectionId = params['detectionId'];
   final int timestamp = params['timestamp'];
   final String tempDirPath = params['tempDirPath'];
   final String docDirPath = params['docDirPath'];
-  final String screenshotPath = params['screenshotPath'];
   final String cameraBase64 = params['cameraBase64'];
 
   try {
     // All heavy processing in isolate
-    final tempDir = Directory(tempDirPath);
     final cameraFrameFileName = 'pothole_cameraFrame_$timestamp.jpg';
 
     // Convert base64 to file in isolate
@@ -233,37 +291,20 @@ Future<Map<String, dynamic>> _personDetectionIsolateProcessor(
     final cameraFrameFile = File('$tempDirPath/$cameraFrameFileName');
     await cameraFrameFile.writeAsBytes(bytes, flush: true);
 
-    final screenshotFile = File(screenshotPath);
-    final croppedCameraFrame = await cropCameraFrameToMatchScreenshot(
-      cameraFrameFile: cameraFrameFile,
-      screenshotFile: screenshotFile,
-      outputPath: '$tempDirPath/cropped_$cameraFrameFileName',
-    );
-
-    final mergedTempFile = await stackScreenshotOnCroppedFrameAndRotateImage(
-      croppedCameraFrame: croppedCameraFrame,
-      screenshotFile: screenshotFile,
-      outputPath: '$tempDirPath/merged_$timestamp.jpg',
-    );
-
     // Move to documents directory
-    final docDir = Directory(docDirPath);
-    final mergedFileName = 'pothole_${timestamp}.jpg';
-    final finalMergedFile = await mergedTempFile.copy(
-      '${docDir.path}/$mergedFileName',
+    final finalImageFile = await cameraFrameFile.copy(
+      '$docDirPath/$cameraFrameFileName',
     );
 
     // Cleanup temp files
     await Future.wait([
       if (cameraFrameFile.existsSync()) cameraFrameFile.delete(),
-      if (croppedCameraFrame.existsSync()) croppedCameraFrame.delete(),
-      if (mergedTempFile.existsSync()) mergedTempFile.delete(),
     ]);
 
     // RETURN result for main thread
     return {
       'success': true,
-      'path': finalMergedFile.path,
+      'path': finalImageFile.path,
       'severity': (detections.first!.confidence * 10).round(),
     };
   } catch (e) {
@@ -271,7 +312,102 @@ Future<Map<String, dynamic>> _personDetectionIsolateProcessor(
   }
 }
 
+// // Main Function for checking the person label in detection
+// void checkForPersonDetection(
+//   List<DetectedObject?>? detections,
+//   Stream<LocationUpdate> locationStream,
+//   Set<int> detectedPersonIds,
+//   ScreenshotController screenshotController,
+//   VisionxYoloCameraController cameraController,
+// )
+// async {
+//   if (detections == null || detections.isEmpty) {
+//     // Clear tracked IDs when no detections
+//     detectedPersonIds.clear();
+//     return;
+//   }
+//
+//   // Get current location
+//   LocationUpdate? currentLocation;
+//   try {
+//     currentLocation = await locationStream.first;
+//   } catch (e) {
+//     debugPrint('Could not get location: $e');
+//     return;
+//   }
+//
+//   // Check each detection
+//   for (final detection in detections) {
+//     if (detection == null) continue;
+//
+//     // Check if it's a person (adjust label name based on your model)
+//     if (detection.label.toLowerCase() == 'person') {
+//       // Use tracking ID if available, otherwise use a hash of the bounding box
+//       final detectionId =
+//           detection.trackingId ??
+//           '${detection.boundingBox.left}_${detection.boundingBox.top}'.hashCode;
+//
+//       // Only save if we haven't saved this person recently
+//       if (!detectedPersonIds.contains(detectionId)) {
+//         detectedPersonIds.add(detectionId);
+//
+//         final tempDir = await getTemporaryDirectory();
+//         final timestamp = DateTime.now().millisecondsSinceEpoch;
+//         final screenshotFileName = 'pothole_screenshot_$timestamp.jpg';
+//
+//         // QUICK MAIN THREAD WORK ONLY (~100ms)
+//         final screenshotImagePath =
+//             await screenshotController.captureAndSave(
+//               tempDir.path,
+//               fileName: screenshotFileName,
+//             ) ??
+//             '${tempDir.path}/$screenshotFileName';
+//
+//         final cameraFrameBase64 = await cameraController.takePicture();
+//         if (cameraFrameBase64 == null) continue;
+//
+//         // OFFLOAD HEAVY WORK TO ISOLATE (~1-2s, non-blocking)
+//         final params = {
+//           'detections': [detection],
+//           'location': currentLocation,
+//           'detectionId': detectionId,
+//           'timestamp': timestamp,
+//           'tempDirPath': tempDir.path,
+//           'docDirPath': (await getApplicationDocumentsDirectory()).path,
+//           'screenshotPath': screenshotImagePath,
+//           'cameraBase64': cameraFrameBase64,
+//         };
+//
+//         // Get result from isolate
+//         final result = await compute(_personDetectionIsolateProcessor, params);
+//
+//         // Call onPotholeDetected WITHOUT await (it's void)
+//         if (result['success'] == true) {
+//           onPotholeDetected(
+//             currentLocation,
+//             result['severity'] as int,
+//             result['path'] as String,
+//           );
+//         } else {
+//           debugPrint('Isolate error: ${result['error']}');
+//         }
+//
+//         // Cleanup screenshot
+//         final screenshotFile = File(screenshotImagePath);
+//         if (screenshotFile.existsSync()) screenshotFile.deleteSync();
+//
+//         // Allow re-detection after 10 seconds
+//         Future.delayed(const Duration(seconds: 10), () {
+//           detectedPersonIds.remove(detectionId);
+//         });
+//       }
+//     }
+//   }
+// }
+
 // Main Function for checking the person label in detection
+
+/// Main Function for checking the person label in detection and storing raw pothole image
 void checkForPersonDetection(
   List<DetectedObject?>? detections,
   Stream<LocationUpdate> locationStream,
@@ -308,31 +444,16 @@ void checkForPersonDetection(
       // Only save if we haven't saved this person recently
       if (!detectedPersonIds.contains(detectionId)) {
         detectedPersonIds.add(detectionId);
-
-        final tempDir = await getTemporaryDirectory();
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final screenshotFileName = 'pothole_screenshot_$timestamp.jpg';
-
-        // QUICK MAIN THREAD WORK ONLY (~100ms)
-        final screenshotImagePath =
-            await screenshotController.captureAndSave(
-              tempDir.path,
-              fileName: screenshotFileName,
-            ) ??
-            '${tempDir.path}/$screenshotFileName';
-
         final cameraFrameBase64 = await cameraController.takePicture();
         if (cameraFrameBase64 == null) continue;
 
         // OFFLOAD HEAVY WORK TO ISOLATE (~1-2s, non-blocking)
         final params = {
           'detections': [detection],
-          'location': currentLocation,
-          'detectionId': detectionId,
           'timestamp': timestamp,
-          'tempDirPath': tempDir.path,
+          'tempDirPath': (await getTemporaryDirectory()).path,
           'docDirPath': (await getApplicationDocumentsDirectory()).path,
-          'screenshotPath': screenshotImagePath,
           'cameraBase64': cameraFrameBase64,
         };
 
@@ -349,10 +470,6 @@ void checkForPersonDetection(
         } else {
           debugPrint('Isolate error: ${result['error']}');
         }
-
-        // Cleanup screenshot
-        final screenshotFile = File(screenshotImagePath);
-        if (screenshotFile.existsSync()) screenshotFile.deleteSync();
 
         // Allow re-detection after 10 seconds
         Future.delayed(const Duration(seconds: 10), () {

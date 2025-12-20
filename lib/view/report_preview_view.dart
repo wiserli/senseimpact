@@ -221,10 +221,10 @@ class _ReportPreviewViewState extends State<ReportPreviewView> {
 
             ListTile(
               leading: const Icon(Icons.table_chart),
-              title: const Text("Export as CSV"),
+              title: const Text("Export as Zip"),
               onTap: () async {
                 Navigator.pop(context);
-                await ExportPassportHelper.exportCSV();
+                await ExportPassportHelper.exportCSVWithImages();
               },
             ),
 

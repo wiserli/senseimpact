@@ -10,12 +10,64 @@ import 'package:share_plus/share_plus.dart';
 import 'package:excel/excel.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../db/pothole_data_model.dart';
+import 'package:archive/archive.dart';
+import 'package:path/path.dart' as path;
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 // import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 
 class ExportPassportHelper {
-  static Future<void> exportCSV() async {
+  // static Future<void> exportCSV() async {
+  //   final potholes = await PotholeDatabase.getAllPotholes();
+  //
+  //   if (potholes.isEmpty) {
+  //     CustomSnackBar().SnackBarMessage("No data to export");
+  //     return;
+  //   }
+  //
+  //   // Prepare CSV data
+  //   List<List<dynamic>> csvData = [
+  //     [
+  //       'ID',
+  //       'Latitude',
+  //       'Longitude',
+  //       'Speed (km/h)',
+  //       'Severity',
+  //       'Timestamp',
+  //       'Image',
+  //     ],
+  //   ];
+  //
+  //   for (final p in potholes) {
+  //     csvData.add([
+  //       p.id ?? 0,
+  //       p.latitude,
+  //       p.longitude,
+  //       p.speedKmh,
+  //       p.severity,
+  //       p.timestamp.toIso8601String(),
+  //       p.imagePath ?? '',
+  //     ]);
+  //   }
+  //
+  //   String csv = const ListToCsvConverter().convert(csvData);
+  //
+  //   // ✅ Use FileSaver with explicit extension
+  //   final bytes = utf8.encode(csv);
+  //   final result = await FileSaver.instance.saveAs(
+  //     name: "pothole_report",
+  //     bytes: bytes,
+  //     fileExtension: 'csv',
+  //     mimeType: MimeType.csv,
+  //   );
+  //
+  //   if (result != null) {
+  //     CustomSnackBar().SnackBarMessage("CSV saved successfully to $result");
+  //   }
+  // }
+
+  static Future<void> exportCSVWithImages() async {
+    /// Export CSV for Pothole Metadata + Images
     final potholes = await PotholeDatabase.getAllPotholes();
 
     if (potholes.isEmpty) {
@@ -25,7 +77,15 @@ class ExportPassportHelper {
 
     // Prepare CSV data
     List<List<dynamic>> csvData = [
-      ['ID', 'Latitude', 'Longitude', 'Speed (km/h)', 'Severity', 'Timestamp'],
+      [
+        'ID',
+        'Latitude',
+        'Longitude',
+        'Speed (km/h)',
+        'Severity',
+        'Timestamp',
+        'Image',
+      ],
     ];
 
     for (final p in potholes) {
@@ -36,22 +96,54 @@ class ExportPassportHelper {
         p.speedKmh,
         p.severity,
         p.timestamp.toIso8601String(),
+        path.basename(p.imagePath) ?? '',
       ]);
     }
 
     String csv = const ListToCsvConverter().convert(csvData);
+    Uint8List csvBytes = Uint8List.fromList(utf8.encode(csv));
 
-    // ✅ Use FileSaver with explicit extension
-    final bytes = utf8.encode(csv);
+    // Create ZIP archive
+    final encoder = ZipEncoder();
+    final archive = Archive();
+
+    // Add CSV to ZIP
+    archive.addFile(
+      ArchiveFile('pothole_report.csv', csvBytes.lengthInBytes, csvBytes),
+    );
+
+    // Add images to ZIP
+    for (final p in potholes) {
+      final imagePath = p.imagePath;
+      if (imagePath != null &&
+          imagePath.isNotEmpty &&
+          await File(imagePath).exists()) {
+        final imageBytes = await File(imagePath).readAsBytes();
+        final fileName = path.basename(
+          imagePath,
+        ); // Extracts just filename like "pothole_1766148631633.jpg"
+        archive.addFile(
+          ArchiveFile('images/$fileName', imageBytes.lengthInBytes, imageBytes),
+        );
+      }
+    }
+
+    // Encode ZIP bytes
+    final zipBytes = encoder.encode(archive)!;
+    final bytes = Uint8List.fromList(zipBytes);
+
+    // Save ZIP using FileSaver
     final result = await FileSaver.instance.saveAs(
       name: "pothole_report",
       bytes: bytes,
-      fileExtension: 'csv',
-      mimeType: MimeType.csv,
+      fileExtension: 'zip',
+      mimeType: MimeType.other,
     );
 
     if (result != null) {
-      CustomSnackBar().SnackBarMessage("CSV saved successfully to $result");
+      CustomSnackBar().SnackBarMessage(
+        "ZIP saved successfully to $result (contains CSV + images)",
+      );
     }
   }
 
@@ -86,6 +178,7 @@ class ExportPassportHelper {
         DoubleCellValue(p.speedKmh),
         IntCellValue(p.severity),
         TextCellValue(p.timestamp.toIso8601String()),
+        TextCellValue(p.imagePath ?? ''),
       ]);
     }
 
