@@ -1,6 +1,8 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../model/sensor_data.dart';
+
 class RoadSensorDB {
   static Database? _db;
 
@@ -44,17 +46,39 @@ class RoadSensorDB {
         gyro_z REAL,
         latitude REAL,
         longitude REAL,
-        speed REAL
+        speed_kmh REAL
       )
     ''');
   }
 
-  static Future<void> insertBatch(List<Map<String, dynamic>> rows) async {
+  static Future<void> insertBatch(List<SensorData> rows) async {
+    if (rows.isEmpty) return;
+
     final db = await database;
-    final batch = db.batch();
-    for (final row in rows) {
-      batch.insert(_tableName, row);
-    }
-    await batch.commit(noResult: true);
+
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+
+      for (final row in rows) {
+        batch.insert(
+          _tableName,
+          row.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+
+      await batch.commit(noResult: true);
+    });
+  }
+
+  static Future<List<SensorData>> getSensorData() async {
+    final db = await database;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      _tableName,
+      orderBy: 'timestamp_us ASC',
+    );
+
+    return maps.map((e) => SensorData.fromMap(e)).toList();
   }
 }

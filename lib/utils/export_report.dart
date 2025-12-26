@@ -5,6 +5,8 @@ import 'package:csv/csv.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
+import 'package:pothole_detection_app/db/road_sensor_db.dart';
+import 'package:pothole_detection_app/model/sensor_data.dart';
 import 'package:pothole_detection_app/utils/indicators.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:excel/excel.dart';
@@ -103,6 +105,48 @@ class ExportPassportHelper {
     String csv = const ListToCsvConverter().convert(csvData);
     Uint8List csvBytes = Uint8List.fromList(utf8.encode(csv));
 
+    /// Export CSV for Sensor Data
+    final sensorData = await RoadSensorDB.getSensorData();
+
+    List<List<dynamic>> csvDataForSensors = [
+      [
+        'ID',
+        'Latitude',
+        'Longitude',
+        'Speed (km/h)',
+        'Timestamp',
+        'Accel X',
+        'Accel Y',
+        'Accel Z',
+        'Gyro X',
+        'Gyro Y',
+        'Gyro Z',
+      ],
+    ];
+
+    for (final p in sensorData) {
+      csvDataForSensors.add([
+        p.id ?? 0,
+        p.latitude,
+        p.longitude,
+        p.speedKmh,
+        p.timestampUs,
+        p.accelX,
+        p.accelY,
+        p.accelZ,
+        p.gyroX,
+        p.gyroY,
+        p.gyroZ,
+      ]);
+    }
+
+    String csvFromSensors = const ListToCsvConverter().convert(
+      csvDataForSensors,
+    );
+    Uint8List csvBytesFromSensors = Uint8List.fromList(
+      utf8.encode(csvFromSensors),
+    );
+
     // Create ZIP archive
     final encoder = ZipEncoder();
     final archive = Archive();
@@ -110,6 +154,13 @@ class ExportPassportHelper {
     // Add CSV to ZIP
     archive.addFile(
       ArchiveFile('pothole_report.csv', csvBytes.lengthInBytes, csvBytes),
+    );
+    archive.addFile(
+      ArchiveFile(
+        'sensor_data_report.csv',
+        csvBytesFromSensors.lengthInBytes,
+        csvBytesFromSensors,
+      ),
     );
 
     // Add images to ZIP

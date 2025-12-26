@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:pothole_detection_app/model/sensor_data.dart';
 import 'package:pothole_detection_app/utils/location.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../db/road_sensor_db.dart';
@@ -20,7 +21,7 @@ class RoadSensorService {
   AccelerometerEvent? _latestAccel;
   GyroscopeEvent? _latestGyro;
 
-  final List<Map<String, dynamic>> _batchBuffer = [];
+  final List<SensorData> _batchBuffer = [];
   bool _isRecording = false;
 
   bool get isRecording => _isRecording;
@@ -56,21 +57,38 @@ class RoadSensorService {
 
       final ts = DateTime.now().microsecondsSinceEpoch;
 
-      _batchBuffer.add({
-        'timestamp_us': ts,
-        'accel_x': _latestAccel!.x,
-        'accel_y': _latestAccel!.y,
-        'accel_z': _latestAccel!.z,
-        'gyro_x': _latestGyro!.x,
-        'gyro_y': _latestGyro!.y,
-        'gyro_z': _latestGyro!.z,
-        'latitude': currentLocation?.position.latitude,
-        'longitude': currentLocation?.position.longitude,
-        'speed': currentLocation?.speedKmh, // m/s
-      });
+      _batchBuffer.add(
+        SensorData(
+          timestampUs: ts,
+          accelX: _latestAccel!.x,
+          accelY: _latestAccel!.y,
+          accelZ: _latestAccel!.z,
+          gyroX: _latestGyro!.x,
+          gyroY: _latestGyro!.y,
+          gyroZ: _latestGyro!.z,
+          latitude: currentLocation?.position.latitude,
+          longitude: currentLocation?.position.longitude,
+          speedKmh: currentLocation?.speedKmh,
+        ),
+      );
+
+      // _batchBuffer.add(
+      //
+      //     {
+      //   'timestamp_us': ts,
+      //   'accel_x': _latestAccel!.x,
+      //   'accel_y': _latestAccel!.y,
+      //   'accel_z': _latestAccel!.z,
+      //   'gyro_x': _latestGyro!.x,
+      //   'gyro_y': _latestGyro!.y,
+      //   'gyro_z': _latestGyro!.z,
+      //   'latitude': currentLocation?.position.latitude,
+      //   'longitude': currentLocation?.position.longitude,
+      //   'speed': currentLocation?.speedKmh, // m/s
+      // });
 
       if (_batchBuffer.length >= batchSize) {
-        final data = List<Map<String, dynamic>>.from(_batchBuffer);
+        final data = List<SensorData>.from(_batchBuffer);
         _batchBuffer.clear();
         await RoadSensorDB.insertBatch(data);
       }
