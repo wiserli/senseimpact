@@ -34,7 +34,7 @@ dependencies:
   visionx:
     git:
       url: https://github.com/wiserli/flutter_cv.git
-      ref: f27b6dfff689f285f48da6caa8db5cd5a918a7cf #visionx_screenshot
+      ref: 991adec42926ea86d44a95ea6da0cd2679ba7ae4 #visionx_screenshot
   device_info_plus:
     git:
       url: https://github.com/wiserli/flutter_cv_app_dep.git
