@@ -43,6 +43,12 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
     <string>This app needs access to location when open.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>App Needs Camera Access For Real-Time Vision AI Detection Running Locally</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>App Needs Photo Library Access For Vision AI Detections On Images Running Locally</string>
+	<key>NSMotionUsageDescription</key>
+    <string>This App Requires Access To The Accelerometer To Get Device Orientation.</string>
     <key>UIBackgroundModes</key>
     <array>
       <string>location</string>
