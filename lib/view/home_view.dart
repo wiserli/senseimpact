@@ -505,7 +505,7 @@ class HomeViewState extends State<HomeView>
     return isLoading
         ? Scaffold(
           backgroundColor: Colors.black,
-          body: CircularProgressIndicator(),
+          body: Center(child: CircularProgressIndicator()),
         )
         : GestureDetector(
           onLongPress: () {
