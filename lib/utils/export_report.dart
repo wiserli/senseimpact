@@ -19,55 +19,6 @@ import 'package:flutter/services.dart' show rootBundle;
 // import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 
 class ExportPassportHelper {
-  // static Future<void> exportCSV() async {
-  //   final potholes = await PotholeDatabase.getAllPotholes();
-  //
-  //   if (potholes.isEmpty) {
-  //     CustomSnackBar().SnackBarMessage("No data to export");
-  //     return;
-  //   }
-  //
-  //   // Prepare CSV data
-  //   List<List<dynamic>> csvData = [
-  //     [
-  //       'ID',
-  //       'Latitude',
-  //       'Longitude',
-  //       'Speed (km/h)',
-  //       'Severity',
-  //       'Timestamp',
-  //       'Image',
-  //     ],
-  //   ];
-  //
-  //   for (final p in potholes) {
-  //     csvData.add([
-  //       p.id ?? 0,
-  //       p.latitude,
-  //       p.longitude,
-  //       p.speedKmh,
-  //       p.severity,
-  //       p.timestamp.toIso8601String(),
-  //       p.imagePath ?? '',
-  //     ]);
-  //   }
-  //
-  //   String csv = const ListToCsvConverter().convert(csvData);
-  //
-  //   // ✅ Use FileSaver with explicit extension
-  //   final bytes = utf8.encode(csv);
-  //   final result = await FileSaver.instance.saveAs(
-  //     name: "pothole_report",
-  //     bytes: bytes,
-  //     fileExtension: 'csv',
-  //     mimeType: MimeType.csv,
-  //   );
-  //
-  //   if (result != null) {
-  //     CustomSnackBar().SnackBarMessage("CSV saved successfully to $result");
-  //   }
-  // }
-
   static Future<void> exportCSVWithImages() async {
     /// Export CSV for Pothole Metadata + Images
     final potholes = await PotholeDatabase.getAllPotholes();
@@ -199,18 +150,19 @@ class ExportPassportHelper {
   }
 
   static Future<void> exportExcel() async {
+    /// Create Excel for Pothole Metadata
     final potholes = await PotholeDatabase.getAllPotholes();
 
     if (potholes.isEmpty) {
-      CustomSnackBar().SnackBarMessage("No data to export");
+      CustomSnackBar().SnackBarMessage("No pothole data to export");
       return;
     }
 
-    final excel = Excel.createExcel();
-    final sheet = excel['Potholes'];
+    final potholeExcel = Excel.createExcel();
+    final potholeSheet = potholeExcel['Potholes'];
 
     // Header row
-    sheet.appendRow([
+    potholeSheet.appendRow([
       TextCellValue("ID"),
       TextCellValue("Latitude"),
       TextCellValue("Longitude"),
@@ -222,30 +174,125 @@ class ExportPassportHelper {
 
     // Data rows
     for (final p in potholes) {
-      sheet.appendRow([
+      potholeSheet.appendRow([
         IntCellValue(p.id ?? 0),
         DoubleCellValue(p.latitude),
         DoubleCellValue(p.longitude),
         DoubleCellValue(p.speedKmh),
         IntCellValue(p.severity),
         TextCellValue(p.timestamp.toIso8601String()),
-        TextCellValue(p.imagePath ?? ''),
+        TextCellValue(path.basename(p.imagePath) ?? ''),
       ]);
     }
 
     // ✅ FIXED: Convert List<int> to Uint8List
-    final bytesList = excel.encode()!;
-    final bytes = Uint8List.fromList(bytesList);
+    final potholeBytesList = potholeExcel.encode()!;
+    final potholeBytes = Uint8List.fromList(potholeBytesList);
 
+    /// Create Excel for Sensor Data
+    final sensorData = await RoadSensorDB.getSensorData();
+
+    if (sensorData.isEmpty) {
+      CustomSnackBar().SnackBarMessage("No sensor data to export");
+      return;
+    }
+
+    final sensorDataExcel = Excel.createExcel();
+    final sensorDataSheet = sensorDataExcel['SensorData'];
+
+    // Header row
+    sensorDataSheet.appendRow([
+      TextCellValue("ID"),
+      TextCellValue("Latitude"),
+      TextCellValue("Longitude"),
+      TextCellValue("Speed (km/h)"),
+      TextCellValue("Timestamp"),
+      TextCellValue("Accel X"),
+      TextCellValue("Accel Y"),
+      TextCellValue("Accel Z"),
+      TextCellValue("Gyro X"),
+      TextCellValue("Gyro Y"),
+      TextCellValue("Gyro Z"),
+    ]);
+
+    // Data rows
+    for (final p in sensorData) {
+      sensorDataSheet.appendRow([
+        IntCellValue(p.id ?? 0),
+        DoubleCellValue(p.latitude ?? 0.0),
+        DoubleCellValue(p.longitude ?? 0.0),
+        DoubleCellValue(p.speedKmh ?? 0.0),
+        TextCellValue(
+          DateTime.fromMicrosecondsSinceEpoch(
+            p.timestampUs,
+            isUtc: true,
+          ).toIso8601String(),
+        ),
+        DoubleCellValue(p.accelX),
+        DoubleCellValue(p.accelY),
+        DoubleCellValue(p.accelZ),
+        DoubleCellValue(p.gyroX),
+        DoubleCellValue(p.gyroY),
+        DoubleCellValue(p.gyroZ),
+      ]);
+    }
+
+    // Convert List<int> to Uint8List
+    final sensorDataBytesList = sensorDataExcel.encode()!;
+    final sensorDataBytes = Uint8List.fromList(sensorDataBytesList);
+
+    // Create ZIP archive
+    final encoder = ZipEncoder();
+    final archive = Archive();
+
+    // Add CSV to ZIP
+    archive.addFile(
+      ArchiveFile(
+        'pothole_report.xlsx',
+        potholeBytes.lengthInBytes,
+        potholeBytes,
+      ),
+    );
+    archive.addFile(
+      ArchiveFile(
+        'sensor_data_report.xlsx',
+        sensorDataBytes.lengthInBytes,
+        sensorDataBytes,
+      ),
+    );
+
+    // Add images to ZIP
+    for (final p in potholes) {
+      final imagePath = p.imagePath;
+      if (imagePath != null &&
+          imagePath.isNotEmpty &&
+          await File(imagePath).exists()) {
+        final imageBytes = await File(imagePath).readAsBytes();
+        final fileName = path.basename(
+          imagePath,
+        ); // Extracts just filename like "pothole_1766148631633.jpg"
+        archive.addFile(
+          ArchiveFile('images/$fileName', imageBytes.lengthInBytes, imageBytes),
+        );
+      }
+    }
+
+    // Encode ZIP bytes
+    final zipBytes = encoder.encode(archive)!;
+    final bytes = Uint8List.fromList(zipBytes);
+
+    // Save ZIP using FileSaver
     final result = await FileSaver.instance.saveAs(
       name: "pothole_report",
       bytes: bytes,
-      fileExtension: 'xlsx',
-      mimeType: MimeType.microsoftExcel,
+      fileExtension: 'zip',
+      mimeType: MimeType.other,
     );
 
     if (result != null) {
-      CustomSnackBar().SnackBarMessage("Excel saved successfully to $result");
+      CustomSnackBar().SnackBarMessage(
+        "ZIP saved successfully to $result (contains Excel + images)",
+      );
     }
   }
 
